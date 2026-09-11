@@ -2,9 +2,19 @@ import { NextResponse } from 'next/server';
 import { getPackById } from '@/config/constants';
 import { checkRepurchaseRestriction } from '@/lib/credit-manager';
 import { fedapay } from '@/lib/fedapay';
+import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
 
 export async function POST(request) {
   try {
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Veuillez vous connecter pour acheter des crédits.', requireAuth: true },
+        { status: 401 }
+      );
+    }
+    const userId = user.id;
+
     const body = await request.json();
     const { pack_id } = body;
 
@@ -16,10 +26,6 @@ export async function POST(request) {
     if (!pack) {
       return NextResponse.json({ error: `Pack inconnu: ${pack_id}` }, { status: 400 });
     }
-
-    // Identifiant utilisateur (extrait du token de session ou d'un en-tête pour dev)
-    const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001'; // Default dev/demo UUID
 
     // ─── RÈGLE MÉTIER STRICTE : Restriction de rachat du même pack ───
     const restriction = await checkRepurchaseRestriction(userId, pack.id);
@@ -38,15 +44,20 @@ export async function POST(request) {
     let token = null;
 
     if (process.env.FEDAPAY_SECRET_KEY) {
+      const userEmail = user.email || 'client@pixaxis.ai';
+      const userName = user.user_metadata?.full_name || 'Client PIXAXIS';
+      const userPhone = user.user_metadata?.phone;
+
       // ─── Initialisation de la transaction réelle sur FedaPay ───
       const transaction = await fedapay.createTransaction({
         amount: pack.price_fcfa,
         description: `PIXAXIS - Achat Pack ${pack.name} (${pack.images_count} images)`,
         callbackUrl,
         customer: {
-          firstname: 'Utilisateur',
-          lastname: 'PIXAXIS',
-          email: 'user@pixaxis.ai',
+          firstname: userName.split(' ')[0] || 'Client',
+          lastname: userName.split(' ').slice(1).join(' ') || 'PIXAXIS',
+          email: userEmail,
+          phone_number: userPhone ? { number: userPhone } : undefined,
         },
         customMetadata: {
           userId,

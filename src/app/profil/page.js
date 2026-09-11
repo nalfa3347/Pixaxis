@@ -15,7 +15,14 @@ import { usePixaxis } from '@/context/PixaxisContext';
  * - Section Paramètres connectée : Compte, Notifications, Déconnexion
  */
 export default function ProfilPage() {
-  const { creditsData, fetchCredits: refreshCredits } = usePixaxis();
+  const { 
+    creditsData, 
+    fetchCredits: refreshCredits, 
+    isAuthenticated, 
+    getAuthHeaders,
+    signOut,
+    user 
+  } = usePixaxis();
 
   // Affichage direct depuis le cache de session (chargement perçu instantané 0ms)
   const credits = creditsData ? (creditsData.total_credits ?? 0) : 0;
@@ -53,7 +60,10 @@ export default function ProfilPage() {
         // Appeler la vérification serveur-à-serveur
         fetch('/api/checkout/verify', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
           body: JSON.stringify({ transaction_id: txId }),
         })
           .then((r) => r.json())
@@ -68,7 +78,7 @@ export default function ProfilPage() {
           .catch((err) => setErrorMessage(err.message));
       }
     }
-  }, [refreshCredits]);
+  }, [refreshCredits, getAuthHeaders]);
 
   // Vérifie si un pack précis a un lot actif (non expiré et crédits restants > 0)
   const isPackActive = (packId) => {
@@ -81,6 +91,10 @@ export default function ProfilPage() {
   const creditPercentage = maxCredits > 0 ? Math.min((credits / maxCredits) * 100, 100) : 0;
 
   async function handleBuyPack(pack) {
+    if (!isAuthenticated) {
+      window.location.href = '/connexion?redirect=/profil';
+      return;
+    }
     if (isPackActive(pack.id)) {
       setErrorMessage(`Vous avez encore des crédits actifs sur le pack ${pack.name}.`);
       return;
@@ -91,7 +105,10 @@ export default function ProfilPage() {
     try {
       const res = await fetch('/api/checkout/fedapay', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({ pack_id: pack.id }),
       });
       const data = await res.json();

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-server';
+import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
 import { 
   CREATION_TYPES, 
   VISUAL_STYLES, 
@@ -15,8 +15,14 @@ import { invalidateUserCache } from '@/app/api/images/route';
 
 export async function POST(request) {
   let queueId = null;
-  const userIdHeader = request.headers.get('x-user-id');
-  const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+  const user = await resolveUser(request);
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Veuillez vous connecter pour créer une image.', requireAuth: true },
+      { status: 401 }
+    );
+  }
+  const userId = user.id;
 
   try {
     const body = await request.json();

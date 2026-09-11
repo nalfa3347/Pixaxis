@@ -1,18 +1,23 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/lib/supabase-client';
 
 const PixaxisContext = createContext(null);
 
 /**
- * PixaxisProvider — Gestionnaire d'état et cache en mémoire de session.
+ * PixaxisProvider — Gestionnaire d'état, authentification et cache de session.
  * 
  * Objectifs clés :
- * 1. Navigation instantanée entre les pages (0ms de latence, aucun écran de chargement sur page déjà vue).
- * 2. Cache intelligent et réactif : mise à jour immédiate dès qu'une image est importée ou générée.
- * 3. Revalidation discrète en arrière-plan (SWR) pour toujours refléter les données réelles de Supabase.
+ * 1. Synchronisation multi-appareils automatique (Supabase Auth).
+ * 2. Navigation instantanée entre les pages (0ms de latence).
+ * 3. Isolation stricte des données par utilisateur.
  */
 export function PixaxisProvider({ children }) {
+  // Session utilisateur
+  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
+
   // Cache des images
   const [createdImages, setCreatedImages] = useState(null);
   const [importedImages, setImportedImages] = useState(null);
@@ -29,6 +34,38 @@ export function PixaxisProvider({ children }) {
   // Timestamp des derniers rafraîchissements
   const lastFetchedRef = useRef({ created: 0, imported: 0, credits: 0 });
 
+  // ─── Écoute de l'authentification Supabase ───
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      // Réinitialiser le cache quand l'utilisateur change
+      lastFetchedRef.current = { created: 0, imported: 0, credits: 0 };
+      setCreatedImages(null);
+      setImportedImages(null);
+      setCreditsData(null);
+    });
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  // En-têtes d'authentification pour les requêtes API
+  const getAuthHeaders = useCallback(() => {
+    const headers = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    if (session?.user?.id) {
+      headers['x-user-id'] = session.user.id;
+    }
+    return headers;
+  }, [session]);
+
   // ─── Récupération des images (avec cache en mémoire) ───
   const fetchImages = useCallback(async (tab, force = false) => {
     const isCreated = tab === 'created';
@@ -36,12 +73,11 @@ export function PixaxisProvider({ children }) {
     const now = Date.now();
     const lastTime = lastFetchedRef.current[tab] || 0;
 
-    // Si des données sont déjà en mémoire et que le cache est récent (< 2min) et pas de force, pas d'appel réseau bloquant
+    // Si des données sont déjà en mémoire et que le cache est récent (< 2min) et pas de force
     if (currentData !== null && !force && now - lastTime < 120000) {
       return currentData;
     }
 
-    // N'afficher le loader que s'il n'y a STRICTEMENT AUCUNE donnée en cache
     const shouldShowSpinner = currentData === null;
     if (shouldShowSpinner) {
       if (isCreated) setIsLoadingCreated(true);
@@ -49,7 +85,9 @@ export function PixaxisProvider({ children }) {
     }
 
     try {
-      const res = await fetch(`/api/images?tab=${tab}`);
+      const res = await fetch(`/api/images?tab=${tab}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         const images = data.images || [];
@@ -65,7 +103,7 @@ export function PixaxisProvider({ children }) {
       else setIsLoadingImported(false);
     }
     return currentData || [];
-  }, [createdImages, importedImages]);
+  }, [createdImages, importedImages, getAuthHeaders]);
 
   // ─── Récupération des crédits (avec cache en mémoire) ───
   const fetchCredits = useCallback(async (force = false) => {
@@ -78,7 +116,9 @@ export function PixaxisProvider({ children }) {
     if (shouldShowSpinner) setIsLoadingCredits(true);
 
     try {
-      const res = await fetch('/api/credits');
+      const res = await fetch(`/api/credits${force ? '?force=true' : ''}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setCreditsData(data);
@@ -91,7 +131,7 @@ export function PixaxisProvider({ children }) {
       setIsLoadingCredits(false);
     }
     return creditsData;
-  }, [creditsData]);
+  }, [creditsData, getAuthHeaders]);
 
   // ─── Récupération de la file glissante ───
   const fetchQueue = useCallback(async () => {
@@ -146,6 +186,7 @@ export function PixaxisProvider({ children }) {
     try {
       const res = await fetch(`/api/images?id=${encodeURIComponent(id || '')}&url=${encodeURIComponent(url || '')}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -159,6 +200,21 @@ export function PixaxisProvider({ children }) {
       console.error('Erreur deleteImportedImage:', err);
       throw err;
     }
+  }, [getAuthHeaders]);
+
+  // ─── Déconnexion propre ───
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pixaxis_user_id');
+      localStorage.removeItem('pixaxis_user_name');
+      localStorage.removeItem('pixaxis_user_phone');
+    }
+    setSession(null);
+    setUser(null);
+    setCreatedImages([]);
+    setImportedImages([]);
+    setCreditsData(null);
   }, []);
 
   // Pré-chargement silencieux au lancement — seulement sur les pages de l'app
@@ -180,6 +236,11 @@ export function PixaxisProvider({ children }) {
   }, []);
 
   const value = {
+    user,
+    session,
+    isAuthenticated: !!user,
+    getAuthHeaders,
+    signOut,
     createdImages,
     importedImages,
     isLoadingCreated,

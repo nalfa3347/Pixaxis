@@ -57,6 +57,8 @@ export default function CreerPage() {
     fetchImages,
     addImportedImages,
     addCreatedImage,
+    isAuthenticated,
+    getAuthHeaders,
   } = usePixaxis();
 
   const activeLot = creditsData?.fefo_lot || null;
@@ -130,6 +132,7 @@ export default function CreerPage() {
 
       const res = await fetch('/api/images', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -244,7 +247,10 @@ export default function CreerPage() {
 
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({
           type: selectedType,
           style: selectedStyle,

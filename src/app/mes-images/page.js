@@ -32,6 +32,7 @@ export default function MesImagesPage() {
     fetchImages,
     addImportedImages,
     deleteImportedImage,
+    getAuthHeaders,
   } = usePixaxis();
 
   // Chargement silencieux en arrière-plan
@@ -59,6 +60,7 @@ export default function MesImagesPage() {
 
       const res = await fetch('/api/images', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserCreditSummary } from '@/lib/credit-manager';
-import { supabaseAdmin } from '@/lib/supabase-server';
+import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
 import { CREDIT_PACKS } from '@/config/constants';
 
 // Cache en mémoire (10s TTL par utilisateur)
@@ -9,8 +9,23 @@ const CACHE_TTL = 10000;
 
 export async function GET(request) {
   try {
-    const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const user = await resolveUser(request);
+    if (!user) {
+      const packRestrictions = {};
+      for (const pack of CREDIT_PACKS) {
+        packRestrictions[pack.id] = { can_purchase: true, active_lot: null, reason: null };
+      }
+      return NextResponse.json({
+        total_credits: 0,
+        active_lots: [],
+        fefo_lot: null,
+        pack_restrictions: packRestrictions,
+        transactions: [],
+        authenticated: false,
+      });
+    }
+
+    const userId = user.id;
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get('force') === 'true';
 

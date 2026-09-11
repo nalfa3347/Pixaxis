@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-server';
+import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
 import { MAX_REFERENCE_IMAGES } from '@/config/constants';
 
 // Cache en mémoire (2min TTL) — les imported_images contiennent des URLs base64 énormes (~100KB/image)
@@ -28,9 +28,11 @@ export function invalidateUserCache(userId) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const tab = searchParams.get('tab') || 'created';
-    const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ images: [], authenticated: false });
+    }
+    const userId = user.id;
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
     // Vérifier le cache
@@ -82,9 +84,11 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const files = formData.getAll('files');
-    const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Veuillez vous connecter pour importer des images.' }, { status: 401 });
+    }
+    const userId = user.id;
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -160,8 +164,11 @@ export async function POST(request) {
  */
 export async function DELETE(request) {
   try {
-    const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Veuillez vous connecter.' }, { status: 401 });
+    }
+    const userId = user.id;
 
     let id = null;
     let url = null;
