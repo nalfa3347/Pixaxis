@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import { MAX_REFERENCE_IMAGES } from '@/config/constants';
 
+// Cache en mémoire (2min TTL) — les imported_images contiennent des URLs base64 énormes (~100KB/image)
+// Le cache est invalidé immédiatement par POST et DELETE, donc 2min est sûr
 const imagesCache = new Map();
 const CACHE_TTL = 120000;
 
@@ -17,6 +19,12 @@ export function invalidateUserCache(userId) {
   }
 }
 
+/**
+ * GET /api/images
+ * Récupère les images de l'utilisateur selon l'onglet demandé :
+ * - created : images générées par l'IA (table generated_images)
+ * - imported : images de référence importées (table imported_images)
+ */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -25,6 +33,7 @@ export async function GET(request) {
     const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
+    // Vérifier le cache
     const cacheKey = getCacheKey(userId, tab);
     const cached = imagesCache.get(cacheKey);
     if (cached && Date.now() - cached.time < CACHE_TTL) {
@@ -32,6 +41,7 @@ export async function GET(request) {
     }
 
     let result;
+
     if (tab === 'imported') {
       const { data, error } = await supabaseAdmin
         .from('imported_images')
@@ -43,6 +53,7 @@ export async function GET(request) {
       if (error) throw error;
       result = { images: data || [] };
     } else {
+      // Onglet par défaut : created
       const { data, error } = await supabaseAdmin
         .from('generated_images')
         .select('id, url, type_creation, style, format, date_creation, credits_utilises')
@@ -54,6 +65,7 @@ export async function GET(request) {
       result = { images: data || [] };
     }
 
+    // Mettre en cache
     imagesCache.set(cacheKey, { data: result, time: Date.now() });
 
     return NextResponse.json(result);
@@ -63,6 +75,10 @@ export async function GET(request) {
   }
 }
 
+/**
+ * POST /api/images
+ * Upload d'une image de référence vers Supabase Storage + enregistrement en base.
+ */
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -88,6 +104,7 @@ export async function POST(request) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const fileName = `${userId}/${Date.now()}_${file.name?.replace(/[^a-zA-Z0-9.-]/g, '_') || 'ref.png'}`;
 
+      // Upload dans le bucket Supabase Storage
       const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
         .from('imported-images')
         .upload(fileName, buffer, {
@@ -105,6 +122,7 @@ export async function POST(request) {
         .getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
 
+      // Enregistrement en base
       const { data: record, error: dbErr } = await supabaseAdmin
         .from('imported_images')
         .insert({
@@ -120,6 +138,7 @@ export async function POST(request) {
       uploaded.push(record || { url: publicUrl, filename: file.name });
     }
 
+    // Invalider le cache après un import
     invalidateUserCache(userId);
 
     return NextResponse.json({
@@ -133,6 +152,12 @@ export async function POST(request) {
   }
 }
 
+/**
+ * DELETE /api/images
+ * Suppression normale et complète d'une image importée :
+ * - Supprime le fichier physique dans le bucket Supabase Storage (imported-images)
+ * - Supprime l'enregistrement correspondant dans la table imported_images
+ */
 export async function DELETE(request) {
   try {
     const userIdHeader = request.headers.get('x-user-id');
@@ -141,6 +166,7 @@ export async function DELETE(request) {
     let id = null;
     let url = null;
 
+    // Récupération de l'ID via query param ou body JSON
     const { searchParams } = new URL(request.url);
     id = searchParams.get('id');
     url = searchParams.get('url');
@@ -150,13 +176,16 @@ export async function DELETE(request) {
         const body = await request.json();
         id = body.id;
         url = body.url;
-      } catch (e) {}
+      } catch (e) {
+        // Pas de body JSON
+      }
     }
 
     if (!id && !url) {
       return NextResponse.json({ error: 'ID ou URL requis pour la suppression' }, { status: 400 });
     }
 
+    // 1. Recherche de l'enregistrement appartenant à cet utilisateur
     let query = supabaseAdmin.from('imported_images').select('*').eq('user_id', userId);
     if (id) {
       query = query.eq('id', id);
@@ -172,6 +201,7 @@ export async function DELETE(request) {
 
     const target = records[0];
 
+    // 2. Suppression dans le bucket Supabase Storage si stockée
     try {
       const bucketName = 'imported-images';
       let storagePath = null;
@@ -183,12 +213,18 @@ export async function DELETE(request) {
 
       if (storagePath) {
         storagePath = decodeURIComponent(storagePath.split('?')[0]);
-        await supabaseAdmin.storage.from(bucketName).remove([storagePath]);
+        const { error: storageErr } = await supabaseAdmin.storage
+          .from(bucketName)
+          .remove([storagePath]);
+        if (storageErr) {
+          console.warn('Avertissement suppression Storage Supabase:', storageErr);
+        }
       }
     } catch (storageException) {
       console.warn('Exception suppression Storage:', storageException);
     }
 
+    // 3. Suppression définitive dans la table imported_images
     const { error: deleteDbErr } = await supabaseAdmin
       .from('imported_images')
       .delete()
@@ -197,6 +233,7 @@ export async function DELETE(request) {
 
     if (deleteDbErr) throw deleteDbErr;
 
+    // Invalider le cache après une suppression
     invalidateUserCache(userId);
 
     return NextResponse.json({
@@ -209,3 +246,4 @@ export async function DELETE(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

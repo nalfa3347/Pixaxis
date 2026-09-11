@@ -28,6 +28,7 @@ export async function POST(request) {
       additional_prompt = '' 
     } = body;
 
+    // ─── 1. Validation stricte des choix utilisateur ───
     if (!type || !style || !format) {
       return NextResponse.json({ error: 'Type, style et format sont obligatoires.' }, { status: 400 });
     }
@@ -46,6 +47,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // ─── 2. RÈGLE FILE GLISSANTE : Maximum 10 requêtes simultanées ───
     const { count: activeCount, error: countErr } = await supabaseAdmin
       .from('generation_queue')
       .select('*', { count: 'exact', head: true })
@@ -62,6 +64,7 @@ export async function POST(request) {
       }, { status: 429 });
     }
 
+    // ─── 3. Vérification du solde de crédits selon la règle FEFO ───
     const fefoLot = await getFefoActiveLot(userId);
     if (!fefoLot) {
       return NextResponse.json({
@@ -75,6 +78,7 @@ export async function POST(request) {
       }, { status: 402 });
     }
 
+    // ─── 4. Enregistrement dans la file d'attente (statut: processing) ───
     const { data: queueItem, error: queueErr } = await supabaseAdmin
       .from('generation_queue')
       .insert({
@@ -96,8 +100,10 @@ export async function POST(request) {
     }
     queueId = queueItem.id;
 
+    // ─── 5. Construction du prompt final automatique ───
     const finalPrompt = buildPrompt(type, style, reference_images.length > 0, additional_prompt);
 
+    // ─── 6. Appel API de génération d'image ───
     let generatedUrl = '';
     const openAiKey = process.env.OPENAI_API_KEY;
 
@@ -128,6 +134,7 @@ export async function POST(request) {
 
       const tempUrl = openAiData.data?.[0]?.url;
 
+      // Téléchargement et stockage permanent dans Supabase Storage (bucket generated-images)
       if (tempUrl) {
         try {
           const imgFetch = await fetch(tempUrl);
@@ -156,9 +163,11 @@ export async function POST(request) {
         }
       }
     } else {
+      // Simulation visuelle SVG/WebP si clé non renseignée
       generatedUrl = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1024&q=80`;
     }
 
+    // ─── 7. Succès : enregistrement de l'image générée en base ───
     const { data: savedImage, error: saveErr } = await supabaseAdmin
       .from('generated_images')
       .insert({
@@ -176,8 +185,10 @@ export async function POST(request) {
 
     if (saveErr) console.warn('Erreur sauvegarde image:', saveErr);
 
+    // Invalider le cache des images
     invalidateUserCache(userId);
 
+    // ─── 8. Déduction des crédits UNIQUEMENT après succès confirmé ───
     const updatedLot = await deductCreditsForGeneration({
       userId,
       creditLotId: fefoLot.id,
@@ -185,6 +196,7 @@ export async function POST(request) {
       generatedImageId: savedImage?.id,
     });
 
+    // ─── 9. Libération immédiate de la place dans la file glissante ───
     await supabaseAdmin
       .from('generation_queue')
       .update({
@@ -203,6 +215,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Erreur génération image:', error);
 
+    // En cas d'échec : libérer la place dans la file et NE PAS déduire de crédits
     if (queueId) {
       await supabaseAdmin
         .from('generation_queue')

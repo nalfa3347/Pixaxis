@@ -110,7 +110,8 @@ export default function MesImagesPage() {
       </div>
 
       {/* ─── État de chargement initial uniquement ─── */}
-      {isInitialLoading ? (\n        <div style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-secondary)' }}>
+      {isInitialLoading ? (
+        <div style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-secondary)' }}>
           <div style={{ display: 'inline-block', width: 32, height: 32, border: '2px solid var(--color-accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 'var(--space-md)' }} />
           <div>Chargement de vos images...</div>
         </div>

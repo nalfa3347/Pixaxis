@@ -3,6 +3,7 @@ import { getUserCreditSummary } from '@/lib/credit-manager';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import { CREDIT_PACKS } from '@/config/constants';
 
+// Cache en mémoire (10s TTL par utilisateur)
 const creditsCache = new Map();
 const CACHE_TTL = 10000;
 
@@ -13,6 +14,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get('force') === 'true';
 
+    // Vérifier le cache (sauf si force refresh)
     if (!forceRefresh) {
       const cached = creditsCache.get(userId);
       if (cached && Date.now() - cached.time < CACHE_TTL) {
@@ -20,6 +22,7 @@ export async function GET(request) {
       }
     }
 
+    // Exécution parallèle des requêtes pour diviser le temps de latence réseau
     const [creditSummary, txResult] = await Promise.all([
       getUserCreditSummary(userId),
       supabaseAdmin
@@ -33,6 +36,7 @@ export async function GET(request) {
     const { totalCredits, activeLots, fefoLot } = creditSummary;
     const transactions = txResult.data || [];
 
+    // Calcul de l'état de restriction de rachat pour chaque pack
     const packRestrictions = {};
     for (const pack of CREDIT_PACKS) {
       const activeLotForPack = activeLots.find(
@@ -55,6 +59,7 @@ export async function GET(request) {
       transactions: transactions,
     };
 
+    // Mettre en cache
     creditsCache.set(userId, { data: result, time: Date.now() });
 
     return NextResponse.json(result);
@@ -66,3 +71,4 @@ export async function GET(request) {
     );
   }
 }
+

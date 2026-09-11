@@ -44,4 +44,170 @@ export function PixaxisProvider({ children }) {
     // N'afficher le loader que s'il n'y a STRICTEMENT AUCUNE donnée en cache
     const shouldShowSpinner = currentData === null;
     if (shouldShowSpinner) {
-      if (isCreated) setIsLoadingCreated(true);\n      else setIsLoadingImported(true);\n    }\n\n    try {\n      const res = await fetch(`/api/images?tab=${tab}`);\n      if (res.ok) {\n        const data = await res.json();\n        const images = data.images || [];\n        if (isCreated) setCreatedImages(images);\n        else setImportedImages(images);\n        lastFetchedRef.current[tab] = Date.now();\n        return images;\n      }\n    } catch (err) {\n      console.warn(`Erreur récupération images (${tab}):`, err);\n    } finally {\n      if (isCreated) setIsLoadingCreated(false);\n      else setIsLoadingImported(false);\n    }\n    return currentData || [];\n  }, [createdImages, importedImages]);\n\n  // ─── Récupération des crédits (avec cache en mémoire) ───\n  const fetchCredits = useCallback(async (force = false) => {\n    const now = Date.now();\n    if (creditsData !== null && !force && now - lastFetchedRef.current.credits < 30000) {\n      return creditsData;\n    }\n\n    const shouldShowSpinner = creditsData === null;\n    if (shouldShowSpinner) setIsLoadingCredits(true);\n\n    try {\n      const res = await fetch('/api/credits');\n      if (res.ok) {\n        const data = await res.json();\n        setCreditsData(data);\n        lastFetchedRef.current.credits = Date.now();\n        return data;\n      }\n    } catch (err) {\n      console.warn('Erreur chargement crédits:', err);\n    } finally {\n      setIsLoadingCredits(false);\n    }\n    return creditsData;\n  }, [creditsData]);\n\n  // ─── Récupération de la file glissante ───\n  const fetchQueue = useCallback(async () => {\n    try {\n      const res = await fetch('/api/queue');\n      if (res.ok) {\n        const data = await res.json();\n        setQueueData(data);\n        return data;\n      }\n    } catch (err) {\n      console.warn('Erreur chargement file:', err);\n    }\n    return queueData;\n  }, [queueData]);\n\n  // ─── Action : Ajouter des images importées dans le cache ───\n  const addImportedImages = useCallback((newImages) => {\n    if (!newImages || newImages.length === 0) return;\n    setImportedImages((prev) => {\n      const existing = prev || [];\n      const added = newImages.filter((ni) => !existing.some((e) => (e.id && e.id === ni.id) || e.url === ni.url));\n      return [...added, ...existing];\n    });\n  }, []);\n\n  // ─── Action : Ajouter une image générée dans le cache ───\n  const addCreatedImage = useCallback((newImage, creditsDeducted = 0) => {\n    if (!newImage) return;\n    setCreatedImages((prev) => [newImage, ...(prev || [])]);\n\n    if (creditsDeducted > 0) {\n      setCreditsData((prev) => {\n        if (!prev) return prev;\n        const newTotal = Math.max(0, (prev.total_credits || 0) - creditsDeducted);\n        return {\n          ...prev,\n          total_credits: newTotal,\n          fefo_lot: prev.fefo_lot\n            ? { ...prev.fefo_lot, credits_restants: Math.max(0, prev.fefo_lot.credits_restants - creditsDeducted) }\n            : null,\n        };\n      });\n    }\n  }, []);\n\n  // ─── Action : Supprimer définitivement une image importée (API + Cache) ───\n  const deleteImportedImage = useCallback(async (id, url) => {\n    if (!id && !url) return false;\n    try {\n      const res = await fetch(`/api/images?id=${encodeURIComponent(id || '')}&url=${encodeURIComponent(url || '')}`, {\n        method: 'DELETE',\n      });\n      if (!res.ok) {\n        const errData = await res.json();\n        throw new Error(errData.error || 'Échec de la suppression');\n      }\n      setImportedImages((prev) => (prev || []).filter((img) => (id ? img.id !== id : img.url !== url)));\n      return true;\n    } catch (err) {\n      console.error('Erreur deleteImportedImage:', err);\n      throw err;\n    }\n  }, []);\n\n  // Pré-chargement silencieux au lancement\n  useEffect(() => {\n    if (typeof window === 'undefined') return;\n    const path = window.location.pathname;\n    const isAppPage = ['/mes-images', '/creer', '/profil'].some(p => path.startsWith(p));\n    if (!isAppPage) return;\n\n    fetchCredits();\n    fetchQueue();\n    const t = setTimeout(() => {\n      fetchImages('created');\n      fetchImages('imported');\n    }, 100);\n    return () => clearTimeout(t);\n  }, []);\n\n  return (\n    <PixaxisContext.Provider value={{\n      createdImages,\n      importedImages,\n      isLoadingCreated,\n      isLoadingImported,\n      creditsData,\n      isLoadingCredits,\n      queueData,\n      fetchImages,\n      fetchCredits,\n      fetchQueue,\n      addImportedImages,\n      addCreatedImage,\n      deleteImportedImage,\n      setCreditsData,\n      setQueueData,\n    }}>\n      {children}\n    </PixaxisContext.Provider>\n  );\n}\n\nexport function usePixaxis() {\n  const context = useContext(PixaxisContext);\n  if (!context) {\n    throw new Error('usePixaxis doit être utilisé au sein de PixaxisProvider');\n  }\n  return context;\n}\n
+      if (isCreated) setIsLoadingCreated(true);
+      else setIsLoadingImported(true);
+    }
+
+    try {
+      const res = await fetch(`/api/images?tab=${tab}`);
+      if (res.ok) {
+        const data = await res.json();
+        const images = data.images || [];
+        if (isCreated) setCreatedImages(images);
+        else setImportedImages(images);
+        lastFetchedRef.current[tab] = Date.now();
+        return images;
+      }
+    } catch (err) {
+      console.warn(`Erreur récupération images (${tab}):`, err);
+    } finally {
+      if (isCreated) setIsLoadingCreated(false);
+      else setIsLoadingImported(false);
+    }
+    return currentData || [];
+  }, [createdImages, importedImages]);
+
+  // ─── Récupération des crédits (avec cache en mémoire) ───
+  const fetchCredits = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (creditsData !== null && !force && now - lastFetchedRef.current.credits < 30000) {
+      return creditsData;
+    }
+
+    const shouldShowSpinner = creditsData === null;
+    if (shouldShowSpinner) setIsLoadingCredits(true);
+
+    try {
+      const res = await fetch('/api/credits');
+      if (res.ok) {
+        const data = await res.json();
+        setCreditsData(data);
+        lastFetchedRef.current.credits = Date.now();
+        return data;
+      }
+    } catch (err) {
+      console.warn('Erreur chargement crédits:', err);
+    } finally {
+      setIsLoadingCredits(false);
+    }
+    return creditsData;
+  }, [creditsData]);
+
+  // ─── Récupération de la file glissante ───
+  const fetchQueue = useCallback(async () => {
+    try {
+      const res = await fetch('/api/queue');
+      if (res.ok) {
+        const data = await res.json();
+        setQueueData(data);
+        return data;
+      }
+    } catch (err) {
+      console.warn('Erreur chargement file:', err);
+    }
+    return queueData;
+  }, [queueData]);
+
+  // ─── Action : Ajouter des images importées dans le cache ───
+  const addImportedImages = useCallback((newImages) => {
+    if (!newImages || newImages.length === 0) return;
+    setImportedImages((prev) => {
+      const existing = prev || [];
+      // Éviter les doublons par ID ou URL
+      const added = newImages.filter((ni) => !existing.some((e) => (e.id && e.id === ni.id) || e.url === ni.url));
+      return [...added, ...existing];
+    });
+  }, []);
+
+  // ─── Action : Ajouter une image générée dans le cache ───
+  const addCreatedImage = useCallback((newImage, creditsDeducted = 0) => {
+    if (!newImage) return;
+    setCreatedImages((prev) => [newImage, ...(prev || [])]);
+
+    // Déduction immédiate dans le cache crédits
+    if (creditsDeducted > 0) {
+      setCreditsData((prev) => {
+        if (!prev) return prev;
+        const newTotal = Math.max(0, (prev.total_credits || 0) - creditsDeducted);
+        return {
+          ...prev,
+          total_credits: newTotal,
+          fefo_lot: prev.fefo_lot
+            ? { ...prev.fefo_lot, credits_restants: Math.max(0, prev.fefo_lot.credits_restants - creditsDeducted) }
+            : null,
+        };
+      });
+    }
+  }, []);
+
+  // ─── Action : Supprimer définitivement une image importée (API + Cache) ───
+  const deleteImportedImage = useCallback(async (id, url) => {
+    if (!id && !url) return false;
+    try {
+      const res = await fetch(`/api/images?id=${encodeURIComponent(id || '')}&url=${encodeURIComponent(url || '')}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Échec de la suppression');
+      }
+
+      // Retrait immédiat du cache en mémoire
+      setImportedImages((prev) => (prev || []).filter((img) => (id ? img.id !== id : img.url !== url)));
+      return true;
+    } catch (err) {
+      console.error('Erreur deleteImportedImage:', err);
+      throw err;
+    }
+  }, []);
+
+  // Pré-chargement silencieux au lancement — seulement sur les pages de l'app
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    const isAppPage = ['/mes-images', '/creer', '/profil'].some(p => path.startsWith(p));
+    if (!isAppPage) return;
+
+    // Crédits et file d'attente sont prioritaires (légers)
+    fetchCredits();
+    fetchQueue();
+    // Images en léger différé pour ne pas saturer la connexion
+    const t = setTimeout(() => {
+      fetchImages('created');
+      fetchImages('imported');
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  const value = {
+    createdImages,
+    importedImages,
+    isLoadingCreated,
+    isLoadingImported,
+    creditsData,
+    isLoadingCredits,
+    queueData,
+    fetchImages,
+    fetchCredits,
+    fetchQueue,
+    addImportedImages,
+    addCreatedImage,
+    deleteImportedImage,
+    setCreditsData,
+    setQueueData,
+  };
+
+  return (
+    <PixaxisContext.Provider value={value}>
+      {children}
+    </PixaxisContext.Provider>
+  );
+}
+
+export function usePixaxis() {
+  const context = useContext(PixaxisContext);
+  if (!context) {
+    throw new Error('usePixaxis doit être utilisé au sein de PixaxisProvider');
+  }
+  return context;
+}

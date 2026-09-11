@@ -37,6 +37,7 @@ export async function POST(request) {
     }
 
     if (action === 'signup') {
+      // 1. Tenter la création directe de l'utilisateur avec confirmation immédiate (sans dépendance SMTP)
       const createRes = await supabaseAdmin.auth.admin.createUser({
         email: targetEmail,
         password: password,
@@ -57,6 +58,7 @@ export async function POST(request) {
         });
       }
 
+      // Si déjà inscrit, on informe le client pour basculer ou connecter directement
       const errMsg = (createRes.error?.message || '').toLowerCase();
       if (errMsg.includes('already') || errMsg.includes('registered') || errMsg.includes('exists')) {
         return NextResponse.json({
@@ -73,6 +75,7 @@ export async function POST(request) {
       );
     }
 
+    // Action === 'signin'
     return NextResponse.json({
       success: true,
       targetEmail,

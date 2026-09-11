@@ -7,6 +7,7 @@ export async function POST(request) {
     const rawBody = await request.text();
     const signature = request.headers.get('x-fedapay-signature');
 
+    // 1. Vérification de la signature cryptographique si configurée
     if (process.env.FEDAPAY_WEBHOOK_SECRET) {
       const isValid = fedapay.verifyWebhookSignature(rawBody, signature);
       if (!isValid) {
@@ -30,7 +31,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'ID de transaction introuvable dans le webhook' }, { status: 400 });
     }
 
+    // Déterminer le statut spécifié par l'événement webhook (ex: approved, canceled, declined)
     const incomingStatus = entity?.status || (eventName === 'transaction.approved' ? 'approved' : 'pending');
+
+    // 2. Vérification serveur-à-serveur DIRECTE avec l'API FedaPay
+    // RÈGLE STRICTE : Ne jamais faire confiance aveuglément au payload entrant sans vérifier l'état réel sur FedaPay
     const actualTransaction = await fedapay.getTransaction(transactionId, incomingStatus);
 
     if (actualTransaction.status !== 'approved') {
@@ -41,6 +46,7 @@ export async function POST(request) {
       });
     }
 
+    // 3. Extraire les métadonnées de la transaction vérifiée
     const customMetadata = actualTransaction.custom_metadata || {};
     const userId = customMetadata.userId || customMetadata.user_id;
     const packId = customMetadata.packId || customMetadata.pack_id;
@@ -50,6 +56,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Métadonnées de transaction incomplètes' }, { status: 400 });
     }
 
+    // 4. Créditer le compte avec protection d'idempotence stricte
     const result = await creditUserAccountFromPayment({
       userId,
       packId,

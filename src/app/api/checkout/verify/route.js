@@ -10,6 +10,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'transaction_id requis' }, { status: 400 });
     }
 
+    // Vérification directe serveur-à-serveur avec FedaPay
     const tx = await fedapay.getTransaction(transaction_id);
 
     if (tx.status !== 'approved') {

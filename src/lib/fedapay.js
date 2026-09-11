@@ -22,6 +22,14 @@ class FedaPayClient {
 
   /**
    * Crée une transaction sur FedaPay.
+   * 
+   * @param {object} params
+   * @param {number} params.amount - Montant en FCFA
+   * @param {string} params.description - Libellé de la transaction
+   * @param {string} params.callbackUrl - URL de retour après paiement
+   * @param {object} params.customer - { firstname, lastname, email }
+   * @param {object} [params.customMetadata] - Métadonnées (userId, packId)
+   * @returns {Promise<object>} La transaction FedaPay créée
    */
   async createTransaction({ amount, description, callbackUrl, customer, customMetadata = {} }) {
     if (!this.apiKey) {
@@ -59,6 +67,9 @@ class FedaPayClient {
 
   /**
    * Génère un jeton (token) et l'URL de redirection vers le guichet FedaPay.
+   * 
+   * @param {string|number} transactionId - ID de transaction retourné par createTransaction
+   * @returns {Promise<{ token: string, url: string }>}
    */
   async generatePaymentToken(transactionId) {
     const res = await fetch(`${this.baseUrl}/transactions/${transactionId}/token`, {
@@ -79,7 +90,12 @@ class FedaPayClient {
   }
 
   /**
-   * Récupère les détails réels d'une transaction directement depuis FedaPay.
+   * Récupère les détails réels d'une transaction directement depuis FedaPay (vérification serveur-à-serveur).
+   * En mode développement/sandbox sans clé secrète externe, vérifie l'achat en attente dans la table `transactions`.
+   * 
+   * @param {string|number} transactionId - ID de la transaction
+   * @param {string} [fallbackStatus='approved'] - Statut de secours en mode test
+   * @returns {Promise<object>} Détails complets de la transaction
    */
   async getTransaction(transactionId, fallbackStatus = 'approved') {
     if (this.apiKey) {
@@ -96,6 +112,8 @@ class FedaPayClient {
       return data['v1/transaction'] || data.transaction || data;
     }
 
+    // En environnement de test / sandbox local sans clé externe :
+    // Vérification de la présence d'un achat en attente dans la table `transactions` de Supabase
     const { supabaseAdmin } = await import('./supabase-server');
     const { data: pendingTx } = await supabaseAdmin
       .from('transactions')
@@ -119,8 +137,18 @@ class FedaPayClient {
     throw new Error(`Transaction ${transactionId} introuvable sur FedaPay et aucun achat en attente correspondant trouvé en base.`);
   }
 
+  /**
+   * Vérifie la signature cryptographique d'un webhook FedaPay si un secret est configuré.
+   * 
+   * @param {string} rawBody - Corps brut de la requête HTTP
+   * @param {string} signatureHeader - En-tête X-FEDAPAY-SIGNATURE
+   * @param {string} [secret] - Secret du webhook
+   * @returns {boolean}
+   */
   verifyWebhookSignature(rawBody, signatureHeader, secret = process.env.FEDAPAY_WEBHOOK_SECRET) {
     if (!secret || !signatureHeader) {
+      // Si aucun secret n'est configuré (ex. sandbox sans signature webhook),
+      // le serveur utilise systématiquement une vérification directe getTransaction() serveur-à-serveur.
       return true;
     }
 

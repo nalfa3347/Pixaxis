@@ -17,9 +17,11 @@ export async function POST(request) {
       return NextResponse.json({ error: `Pack inconnu: ${pack_id}` }, { status: 400 });
     }
 
+    // Identifiant utilisateur (extrait du token de session ou d'un en-tête pour dev)
     const userIdHeader = request.headers.get('x-user-id');
-    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001'; // Default dev/demo UUID
 
+    // ─── RÈGLE MÉTIER STRICTE : Restriction de rachat du même pack ───
     const restriction = await checkRepurchaseRestriction(userId, pack.id);
     if (!restriction.allowed) {
       return NextResponse.json(
@@ -36,6 +38,7 @@ export async function POST(request) {
     let token = null;
 
     if (process.env.FEDAPAY_SECRET_KEY) {
+      // ─── Initialisation de la transaction réelle sur FedaPay ───
       const transaction = await fedapay.createTransaction({
         amount: pack.price_fcfa,
         description: `PIXAXIS - Achat Pack ${pack.name} (${pack.images_count} images)`,
@@ -56,10 +59,12 @@ export async function POST(request) {
       paymentUrl = tokenData.url;
       token = tokenData.token;
     } else {
+      // ─── Mode Sandbox / Test local sans clé secrète externe ───
       transactionId = `fp_tx_${Date.now()}`;
       paymentUrl = `${appUrl}/profil?payment=return&id=${transactionId}&pack_id=${pack.id}`;
     }
 
+    // ─── Enregistrement de l'achat en attente dans la table transactions ───
     const { supabaseAdmin } = await import('@/lib/supabase-server');
     await supabaseAdmin.from('transactions').insert({
       user_id: userId,
