@@ -1,0 +1,68 @@
+import { NextResponse } from 'next/server';
+import { getUserCreditSummary } from '@/lib/credit-manager';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { CREDIT_PACKS } from '@/config/constants';
+
+const creditsCache = new Map();
+const CACHE_TTL = 10000;
+
+export async function GET(request) {
+  try {
+    const userIdHeader = request.headers.get('x-user-id');
+    const userId = userIdHeader || '00000000-0000-0000-0000-000000000001';
+    const { searchParams } = new URL(request.url);
+    const forceRefresh = searchParams.get('force') === 'true';
+
+    if (!forceRefresh) {
+      const cached = creditsCache.get(userId);
+      if (cached && Date.now() - cached.time < CACHE_TTL) {
+        return NextResponse.json(cached.data);
+      }
+    }
+
+    const [creditSummary, txResult] = await Promise.all([
+      getUserCreditSummary(userId),
+      supabaseAdmin
+        .from('transactions')
+        .select('id, type, credits_debites, credits_ajoutes, montant_fcfa, pack_id, date_transaction')
+        .eq('user_id', userId)
+        .order('date_transaction', { ascending: false })
+        .limit(20),
+    ]);
+
+    const { totalCredits, activeLots, fefoLot } = creditSummary;
+    const transactions = txResult.data || [];
+
+    const packRestrictions = {};
+    for (const pack of CREDIT_PACKS) {
+      const activeLotForPack = activeLots.find(
+        (lot) => lot.pack_id === pack.id && lot.credits_restants > 0
+      );
+      packRestrictions[pack.id] = {
+        can_purchase: !activeLotForPack,
+        active_lot: activeLotForPack || null,
+        reason: activeLotForPack 
+          ? `Vous avez encore ${activeLotForPack.credits_restants} crédits actifs sur ce pack.`
+          : null,
+      };
+    }
+
+    const result = {
+      total_credits: totalCredits,
+      active_lots: activeLots,
+      fefo_lot: fefoLot,
+      pack_restrictions: packRestrictions,
+      transactions: transactions,
+    };
+
+    creditsCache.set(userId, { data: result, time: Date.now() });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Erreur API /api/credits:', error);
+    return NextResponse.json(
+      { error: error.message || 'Erreur lors de la récupération des crédits' },
+      { status: 500 }
+    );
+  }
+}
