@@ -69,7 +69,7 @@ const RAW_PACKS = [
       'Coût réduit : 180 crédits / image',
       '3 060 crédits réels crédités',
       'Validité confortable de 3 mois',
-      'Jusqu’à 10 images de référence',
+      'Jusqu’à 3 images de référence',
       'Support client prioritaire WhatsApp',
     ],
   },
@@ -111,7 +111,7 @@ const RAW_PACKS = [
       'Tarif le plus bas : 150 crédits / image',
       '15 000 crédits réels crédités',
       'Validité maximale de 1 an',
-      'Gestion multi-références (10 images)',
+      'Gestion multi-références (3 images)',
       'Assistance VIP WhatsApp dédiée',
     ],
   },
@@ -154,11 +154,41 @@ export function calculateExpirationDate(packOrId, fromDate = new Date()) {
 }
 
 // ─── Limites et validation ───────────────────────────────────────
-export const MAX_REFERENCE_IMAGES = 10;
+export const MAX_REFERENCE_IMAGES = 3;
 export const MAX_IMAGE_DIMENSION_PX = 1024;
+export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_UPLOAD_SIZE_MB = 10;
+export const MAX_IMAGE_DIMENSION_SERVER_PX = 2048;
 export const OPENAI_IMAGE_QUALITY = 'medium';
 export const OPENAI_MODEL = 'gpt-image-2';
+export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// ─── Rôles des images de référence (max 3) ───────────────────────
+// Chaque image a un rôle spécifique qui influence le prompt envoyé à l'IA.
+// Ordre de priorité strict en cas de conflit : Produit > Logo/Marque > Style/Ambiance
+export const IMAGE_ROLES = [
+  {
+    id: 'product',
+    label: '1. Produit',
+    title: 'Produit (priorité absolue)',
+    description: 'Référence principale du produit — fidélité maximale (forme, proportions, couleurs, matière, détails)',
+    promptInstruction: 'The first reference image shows the PRODUCT (STRICT PRIORITY 1): Preserve its exact shape, proportions, colors, materials, components, details and design with maximum fidelity. Do NOT alter the product appearance. Only angle, lighting, integration into the scene and environment may adapt to the prompt.',
+  },
+  {
+    id: 'logo',
+    label: '2. Logo / Marque',
+    title: 'Logo / Marque (haute priorité)',
+    description: 'Logo ou marque à intégrer fidèlement dans la composition (forme, couleur, lisibilité)',
+    promptInstruction: 'The second reference image shows the LOGO/BRAND (HIGH PRIORITY 2): Integrate this logo or brand element faithfully into the final composition. Preserve its exact shape, colors, typography, proportions and readability without distortion.',
+  },
+  {
+    id: 'style',
+    label: '3. Style / Ambiance',
+    title: 'Style / Ambiance (priorité secondaire)',
+    description: 'Inspiration esthétique (éclairage, colorimétrie, ambiance) — ne pas reproduire littéralement',
+    promptInstruction: 'The third reference image is a STYLE/MOOD REFERENCE (SECONDARY PRIORITY 3): Use it solely as aesthetic inspiration for lighting, color palette, mood, atmosphere and overall composition. Do NOT reproduce this image literally.',
+  },
+];
 
 // ─── Mapping type+style+format → prompt (interne, jamais exposé au client) ──
 // Ce mapping est utilisé côté serveur uniquement pour construire le prompt final.
@@ -199,11 +229,11 @@ export const MAX_CONCURRENT_GENERATIONS = 10;
  * 
  * @param {string} type - ID du type de création
  * @param {string} style - ID du style visuel
- * @param {boolean} hasReferenceImages - Si des images de référence sont fournies
+ * @param {number} imageCount - Nombre d'images de référence fournies (0, 1, 2 ou 3)
  * @param {string} [additionalPrompt] - Détail optionnel saisi par l'utilisateur (max 150 chars)
  * @returns {string} Prompt structuré pour l'API OpenAI
  */
-export function buildPrompt(type, style, hasReferenceImages, additionalPrompt = '') {
+export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') {
   const basePrompt = PROMPT_TEMPLATES[type]?.[style];
   
   if (!basePrompt) {
@@ -212,19 +242,24 @@ export function buildPrompt(type, style, hasReferenceImages, additionalPrompt = 
 
   let prompt = basePrompt;
 
-  if (hasReferenceImages) {
-    prompt += '. Use the provided reference image(s) as inspiration for the style, colors, and composition';
+  // Ajout des instructions de rôle pour chaque image de référence fournie
+  if (imageCount > 0) {
+    prompt += '.\n\nSTRICT REFERENCE IMAGE ROLES & PRIORITY (Priority 1: Product > Priority 2: Logo/Brand > Priority 3: Style/Mood):';
+    for (let i = 0; i < Math.min(imageCount, IMAGE_ROLES.length); i++) {
+      prompt += `\n- ${IMAGE_ROLES[i].promptInstruction}`;
+    }
+    prompt += '\nSTRICT ENFORCEMENT: The style or mood must NEVER alter, modify, or distort the product or the logo.';
   }
 
   // Ajout du détail optionnel de l'utilisateur s'il est renseigné (max 150 caractères)
   if (additionalPrompt && typeof additionalPrompt === 'string') {
     const sanitized = additionalPrompt.trim().slice(0, MAX_ADDITIONAL_PROMPT_LENGTH);
     if (sanitized) {
-      prompt += `. Additional detail: ${sanitized}`;
+      prompt += `.\nAdditional detail from the user: ${sanitized}`;
     }
   }
 
-  prompt += '. High quality, professional result, suitable for commercial use.';
+  prompt += '.\nHigh quality, professional result, suitable for commercial use.';
 
   return prompt;
 }

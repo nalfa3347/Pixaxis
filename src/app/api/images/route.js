@@ -33,6 +33,7 @@ export async function GET(request) {
       return NextResponse.json({ images: [], authenticated: false });
     }
     const userId = user.id;
+    const tab = searchParams.get('tab') || 'created';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
     // Vérifier le cache
@@ -89,6 +90,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Veuillez vous connecter pour importer des images.' }, { status: 401 });
     }
     const userId = user.id;
+    const files = formData.getAll('files').filter((f) => f instanceof Blob && f.size > 0);
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -96,7 +98,7 @@ export async function POST(request) {
 
     if (files.length > MAX_REFERENCE_IMAGES) {
       return NextResponse.json({ 
-        error: `Vous ne pouvez pas importer plus de ${MAX_REFERENCE_IMAGES} images à la fois.` 
+        error: `Maximum ${MAX_REFERENCE_IMAGES} images de référence autorisées.` 
       }, { status: 400 });
     }
 

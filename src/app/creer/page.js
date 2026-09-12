@@ -8,7 +8,9 @@ import {
   FORMATS, 
   MAX_REFERENCE_IMAGES, 
   MAX_ADDITIONAL_PROMPT_LENGTH,
-  MAX_CONCURRENT_GENERATIONS 
+  MAX_CONCURRENT_GENERATIONS,
+  IMAGE_ROLES,
+  MAX_IMAGE_SIZE_MB 
 } from '@/config/constants';
 import ImageLightbox from '@/components/ImageLightbox';
 import { compressImage } from '@/lib/image-compressor';
@@ -80,7 +82,7 @@ export default function CreerPage() {
   // Déclencheur pour le bouton "+" : choix entre nouvel import et images déjà importées
   function handlePlusClick() {
     if (selectedImages.length >= MAX_REFERENCE_IMAGES) {
-      alert(`Vous avez atteint la limite maximale de ${MAX_REFERENCE_IMAGES} images.`);
+      setErrorMessage('Maximum 3 images de référence autorisées.');
       return;
     }
     
@@ -99,9 +101,24 @@ export default function CreerPage() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    if (selectedImages.length >= MAX_REFERENCE_IMAGES) {
+      setErrorMessage('Maximum 3 images de référence autorisées.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const remainingSlots = MAX_REFERENCE_IMAGES - selectedImages.length;
     if (files.length > remainingSlots) {
-      setErrorMessage(`Vous ne pouvez ajouter que ${remainingSlots} image(s) supplémentaire(s) (maximum ${MAX_REFERENCE_IMAGES}).`);
+      setErrorMessage('Maximum 3 images de référence autorisées.');
+    }
+
+    // Validation taille : max 5 MB par image
+    const maxBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+    for (const file of files) {
+      if (file.size > maxBytes) {
+        setErrorMessage(`L'image "${file.name}" (${(file.size / 1024 / 1024).toFixed(1)} Mo) dépasse la limite de ${MAX_IMAGE_SIZE_MB} Mo.`);
+        return;
+      }
     }
 
     const filesToUpload = files.slice(0, remainingSlots);
@@ -238,27 +255,53 @@ export default function CreerPage() {
     }, 3200);
 
     try {
-      // Résolution des URLs des images de référence
-      let resolvedRefs = taskReferenceImages.map((img) => img.url).filter(Boolean);
-      if (resolvedRefs.length < taskReferenceImages.length) {
-        await new Promise((r) => setTimeout(r, 600));
-        resolvedRefs = taskReferenceImages.map((img) => img.url).filter(Boolean);
+      // Construction du FormData si des images de référence sont présentes
+      let fetchOptions;
+      if (taskReferenceImages.length > 0) {
+        const formData = new FormData();
+        formData.append('type', selectedType);
+        formData.append('style', selectedStyle);
+        formData.append('format', selectedFormat);
+        formData.append('additional_prompt', taskPrompt);
+        
+        // Ajouter les fichiers image dans l'ordre strict des rôles (1: Produit > 2: Logo/Marque > 3: Style/Ambiance)
+        for (let i = 0; i < Math.min(taskReferenceImages.length, MAX_REFERENCE_IMAGES); i++) {
+          const img = taskReferenceImages[i];
+          if (img.file) {
+            formData.append('images', img.file, img.name || `ref_${i}.png`);
+          } else if (img.url) {
+            try {
+              const resBlob = await fetch(img.url);
+              const blob = await resBlob.blob();
+              formData.append('images', blob, img.name || `ref_${i}.png`);
+            } catch (err) {
+              console.warn('Erreur récupération blob image référence:', err);
+            }
+          }
+        }
+        
+        fetchOptions = {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData,
+        };
+      } else {
+        fetchOptions = {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            type: selectedType,
+            style: selectedStyle,
+            format: selectedFormat,
+            additional_prompt: taskPrompt,
+          }),
+        };
       }
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          type: selectedType,
-          style: selectedStyle,
-          format: selectedFormat,
-          additional_prompt: taskPrompt,
-          reference_images: resolvedRefs,
-        }),
-      });
+      const res = await fetch('/api/generate', fetchOptions);
 
       const data = await res.json();
 
@@ -582,14 +625,22 @@ export default function CreerPage() {
 
           {/* Pièces jointes attachées sur la ligne du chat */}
           {selectedImages.length > 0 && (
-            <div className="chat-attachments-row">
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--color-accent)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.9 }}>
+                <span>✦ Rôles : 1. Produit (priorité absolue) • 2. Logo/Marque • 3. Style/Ambiance</span>
+              </div>
+              <div className="chat-attachments-row">
               {selectedImages.map((img, idx) => (
-                <div key={img.id || idx} className="chat-attachment-chip" title="Cliquez pour agrandir">
+                <div key={img.id || idx} className="chat-attachment-chip" title={`${IMAGE_ROLES[idx]?.label || 'Référence'} — Cliquez pour agrandir`}>
                   <img 
                     src={img.preview || img.url} 
                     alt={img.name} 
                     onClick={() => setPreviewImage(img)}
                   />
+                  {/* Badge du rôle de l'image */}
+                  <span className="chat-attachment-role-badge">
+                    {IMAGE_ROLES[idx]?.label || `Image ${idx + 1}`}
+                  </span>
                   {img.isUploading && (
                     <div className="chat-attachment-spinner">
                       <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--color-accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -624,6 +675,7 @@ export default function CreerPage() {
                   </svg>
                 </button>
               )}
+            </div>
             </div>
           )}
 
@@ -850,7 +902,7 @@ export default function CreerPage() {
                               setSelectedImages((prev) => prev.filter((s) => s.url !== img.url && s.id !== img.id));
                             } else {
                               if (selectedImages.length >= MAX_REFERENCE_IMAGES) {
-                                alert(`Limite de ${MAX_REFERENCE_IMAGES} images de référence atteinte.`);
+                                setErrorMessage('Maximum 3 images de référence autorisées.');
                                 return;
                               }
                               setSelectedImages((prev) => [...prev, {

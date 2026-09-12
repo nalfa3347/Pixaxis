@@ -2166,6 +2166,22 @@ svg[data-nextjs] {
   justify-content: center;
 }
 
+.chat-attachment-role-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1px 0;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.85));
+  color: var(--color-accent);
+  font-size: 8px;
+  font-weight: var(--weight-bold);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
 .chat-attachment-add-more {
   width: 48px;
   height: 48px;
