@@ -41,25 +41,31 @@ export function PixaxisProvider({ children }) {
 
   // ─── Écoute et vérification de l'authentification Supabase ───
   useEffect(() => {
-    // Vérification auprès de Supabase pour purger toute session orpheline ou utilisateur supprimé
-    supabase.auth.getUser().then(({ data: { user: verifiedUser }, error }) => {
-      if (error || !verifiedUser) {
-        // Nettoyage immédiat des jetons locaux périmés
-        supabase.auth.signOut().catch(() => {});
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('pixaxis_user_id');
-          localStorage.removeItem('pixaxis_user_name');
-          localStorage.removeItem('pixaxis_user_phone');
-        }
-        setSession(null);
-        setUser(null);
-      } else {
-        supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-          setSession(currentSession);
-          setUser(verifiedUser);
-        });
+    // 1. Initialisation instantanée depuis la session locale (0ms de latence perçue)
+    supabase.auth.getSession().then(({ data: { session: localSession } }) => {
+      if (localSession) {
+        setSession(localSession);
+        setUser(localSession.user || null);
       }
       setAuthInitialized(true);
+
+      // 2. Vérification d'intégrité en arrière-plan sans bloquer l'affichage
+      if (localSession?.user) {
+        supabase.auth.getUser().then(({ data: { user: verifiedUser }, error }) => {
+          if (error || !verifiedUser) {
+            supabase.auth.signOut().catch(() => {});
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('pixaxis_user_id');
+              localStorage.removeItem('pixaxis_user_name');
+              localStorage.removeItem('pixaxis_user_phone');
+            }
+            setSession(null);
+            setUser(null);
+          } else if (verifiedUser.id !== localSession.user.id) {
+            setUser(verifiedUser);
+          }
+        }).catch(() => {});
+      }
     }).catch(() => {
       setAuthInitialized(true);
     });

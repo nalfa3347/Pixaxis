@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { CREDIT_PACKS } from '@/config/constants';
-import AccountModal from '@/components/AccountModal';
-import NotificationDrawer from '@/components/NotificationDrawer';
+import dynamic from 'next/dynamic';
+
+const AccountModal = dynamic(() => import('@/components/AccountModal'), { ssr: false });
+const NotificationDrawer = dynamic(() => import('@/components/NotificationDrawer'), { ssr: false });
 import { supabase } from '@/lib/supabase-client';
 import { usePixaxis } from '@/context/PixaxisContext';
 

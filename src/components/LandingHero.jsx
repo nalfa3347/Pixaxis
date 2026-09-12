@@ -435,9 +435,12 @@ export default function LandingHero() {
 
             {/* Right Preview Visual — Diaporama 20 images hyper-réalistes avec zoom/dézoom discret */}
             <div className="landing-mockup__preview-canvas">
-              {/* Slideshow des 20 images */}
+              {/* Slideshow optimisé : rendu uniquement de l'image active + précharge discrète de la suivante */}
               {MOCKUP_SHOWCASE_IMAGES.map((img, idx) => {
                 const isActive = idx === currentIndex;
+                const isNext = idx === (currentIndex + 1) % MOCKUP_SHOWCASE_IMAGES.length;
+                if (!isActive && !isNext) return null;
+
                 return (
                   <div
                     key={img.id}
@@ -448,7 +451,8 @@ export default function LandingHero() {
                       src={img.url}
                       alt={img.alt}
                       className="landing-mockup__slide-img"
-                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      loading={isActive ? 'eager' : 'lazy'}
+                      fetchPriority={isActive ? 'high' : 'low'}
                       decoding="async"
                     />
                     <div className="landing-mockup__slide-overlay" />

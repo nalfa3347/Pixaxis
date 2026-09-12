@@ -31,8 +31,8 @@
   --color-overlay: rgba(0, 0, 0, 0.85);
 
   /* Typography */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Outfit', 'Inter', sans-serif;
+  --font-body: var(--font-body), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: var(--font-heading), 'Outfit', 'Inter', sans-serif;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -4046,6 +4046,12 @@ svg[data-nextjs] {
   }
 }
 
+@media (max-width: 340px) {
+  .auth-card {
+    padding: 1.25rem 0.85rem;
+  }
+}
+
 /* ─── Mode Application Installée (PWA / Standalone) ─── */
 @media all and (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
   .landing-wrapper {
@@ -4390,6 +4396,108 @@ html.is-standalone-app .auth-page__back-btn {
 .onboarding-3d-card__subtext {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* ════════════════════════════════════════════════════════════
+   OPTIMISATIONS RESPONSIVE MOBILE AVANCÉES (320px - 480px)
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .app-main {
+    padding: var(--space-md) 0.75rem;
+    padding-bottom: calc(var(--bottom-nav-height) + var(--space-lg));
+  }
+
+  /* Éviter le zoom automatique Safari iOS sur les champs de saisie */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Grille des images : 2 colonnes sans débordement */
+  .images-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  /* Boutons avec zone tactile confortable */
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.92rem;
+  }
+}
+
+@media (max-width: 380px) {
+  :root {
+    --text-3xl: 1.5rem;
+    --text-2xl: 1.25rem;
+    --text-xl: 1.1rem;
+  }
+
+  .header__title {
+    font-size: 1.05rem;
+  }
+
+  .app-main {
+    padding: var(--space-sm) 0.5rem;
+    padding-bottom: calc(var(--bottom-nav-height) + var(--space-md));
+  }
+
+  .images-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.45rem;
+  }
+
+  .image-thumb-card {
+    border-radius: 8px;
+  }
+
+  .image-thumb-card__overlay {
+    padding: 0.4rem;
+  }
+
+  .image-thumb-card__title {
+    font-size: 0.72rem;
+  }
+
+  .image-thumb-card__meta {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .header {
+    padding: 0 0.5rem;
+  }
+
+  .header__title {
+    font-size: 0.95rem;
+  }
+
+  .header__icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .bottom-nav__link {
+    min-width: 54px;
+    padding: 4px 2px;
+    font-size: 0.68rem;
+  }
+
+  .bottom-nav__link svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import ImageLightbox from '@/components/ImageLightbox';
+import dynamic from 'next/dynamic';
+
+const ImageLightbox = dynamic(() => import('@/components/ImageLightbox'), { ssr: false });
 import { usePixaxis } from '@/context/PixaxisContext';
 import { compressImage } from '@/lib/image-compressor';
 

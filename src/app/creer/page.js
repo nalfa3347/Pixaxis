@@ -13,7 +13,9 @@ import {
   IMAGE_ROLES,
   MAX_IMAGE_SIZE_MB 
 } from '@/config/constants';
-import ImageLightbox from '@/components/ImageLightbox';
+import dynamic from 'next/dynamic';
+
+const ImageLightbox = dynamic(() => import('@/components/ImageLightbox'), { ssr: false });
 import { compressImage } from '@/lib/image-compressor';
 import { usePixaxis } from '@/context/PixaxisContext';
 import { downloadImage } from '@/lib/download-helper';

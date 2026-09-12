@@ -2284,6 +2284,111 @@ export default function OnboardingPage() {
           line-height: 1.45;
           margin: 0;
         }
+
+        /* ════════════════════════════════════════════════════════════
+           RESPONSIVE MOBILE STRICT (320px — 600px)
+           ════════════════════════════════════════════════════════════ */
+        @media (max-width: 600px) {
+          .onboarding-main {
+            padding: 1.25rem 0.75rem;
+            width: 100%;
+          }
+
+          .onboarding-card {
+            padding: 1.5rem 1.15rem;
+            border-radius: 16px;
+            gap: 1.25rem;
+          }
+
+          .onboarding-title {
+            font-size: clamp(1.25rem, 5vw, 1.65rem);
+          }
+
+          .onboarding-subtitle {
+            font-size: 0.88rem;
+          }
+
+          .onboarding-upload-choices {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+          }
+
+          .onboarding-formats-grid {
+            grid-template-columns: 1fr;
+            gap: 0.65rem;
+          }
+
+          .onboarding-actions {
+            flex-direction: column;
+            width: 100%;
+            gap: 0.65rem;
+          }
+
+          .onboarding-btn-primary,
+          .onboarding-btn-ghost,
+          .onboarding-final-btn {
+            width: 100%;
+            min-height: 48px;
+            justify-content: center;
+          }
+
+          .onboarding-result-actions {
+            flex-direction: column;
+            width: 100%;
+            gap: 0.75rem;
+          }
+
+          .onboarding-btn-download,
+          .onboarding-btn-logo {
+            width: 100%;
+            min-height: 48px;
+            justify-content: center;
+          }
+
+          .onboarding-chat-textarea,
+          .onboarding-input {
+            font-size: 16px !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .onboarding-main {
+            padding: 0.85rem 0.5rem;
+          }
+
+          .onboarding-card {
+            padding: 1.15rem 0.85rem;
+            border-radius: 12px;
+            gap: 1rem;
+          }
+
+          .onboarding-title {
+            font-size: 1.18rem;
+          }
+
+          .onboarding-upload-tile {
+            padding: 1rem 0.75rem;
+          }
+
+          .onboarding-stars-row {
+            gap: 0.35rem;
+          }
+
+          .onboarding-star-btn {
+            font-size: 1.35rem;
+            padding: 0.15rem;
+          }
+        }
+
+        @media (max-width: 340px) {
+          .onboarding-card {
+            padding: 1rem 0.65rem;
+          }
+
+          .onboarding-title {
+            font-size: 1.1rem;
+          }
+        }
       `}</style>
     </div>
   );

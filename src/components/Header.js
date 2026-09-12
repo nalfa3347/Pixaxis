@@ -3,8 +3,10 @@
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { PAGES } from '@/config/constants';
-import SearchModal from './SearchModal';
-import NotificationDrawer from './NotificationDrawer';
+import dynamic from 'next/dynamic';
+
+const SearchModal = dynamic(() => import('./SearchModal'), { ssr: false });
+const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), { ssr: false });
 
 /**
  * Header — Barre du haut épinglée (sticky).
