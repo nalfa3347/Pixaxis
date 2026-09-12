@@ -25,7 +25,7 @@ async function main() {
   }
 
   // 1. Récupération de l'admin et d'un utilisateur normal
-  const adminEmail = 'nasserpillarrr@gmail.com';
+  const adminEmail = 'nasserpillar4@gmail.com';
   const normalEmail = 'phone_22892594526@pixaxis.com';
 
   const { data: adminProfile } = await supabase

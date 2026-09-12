@@ -1,4 +1,4 @@
-import { supabaseAdmin, resolveUser } from './supabase-server';
+import { supabaseAdmin, resolveUser } from './supabase-server.js';
 
 /**
  * PIXAXIS — Module d'administration et sécurité serveur.
