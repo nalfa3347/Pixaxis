@@ -6,6 +6,7 @@ import LandingPricing from '@/components/LandingPricing';
 import LandingFAQ from '@/components/LandingFAQ';
 import LandingCallout from '@/components/LandingCallout';
 import LandingFooter from '@/components/LandingFooter';
+import ScrollReveal from '@/components/ScrollReveal';
 
 export const metadata = {
   title: 'PIXAXIS — Créez des images IA en un clic | Afrique de l’Ouest',
@@ -15,6 +16,7 @@ export const metadata = {
 export default function Home() {
   return (
     <div className="landing-wrapper">
+      <ScrollReveal />
       <LandingNavbar />
       <main>
         <LandingHero />

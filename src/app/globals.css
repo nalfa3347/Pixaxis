@@ -4048,5 +4048,175 @@ html.is-standalone-app .auth-page__back-btn {
   display: none !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   ANIMATIONS DE DÉFILEMENT HAUT DE GAMME (PREMIUM SCROLL REVEAL)
+   Effet cinématique Apple / Linear : fluide, sobre, accéléré matériel
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 1. État d'attente hors écran pour les sections */
+  .landing-section.reveal-init,
+  .landing-callout.reveal-init {
+    opacity: 0;
+    transform: translateY(42px);
+    transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  /* 2. Révélation au scroll de la section */
+  .landing-section.is-revealed,
+  .landing-callout.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* 3. Ligne de faisceau lumineux cyan sur la bordure supérieure */
+  .landing-section.is-revealed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(0, 229, 255, 0.5) 50%, transparent 100%);
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.35);
+    animation: borderBeamShine 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @keyframes borderBeamShine {
+    0% {
+      opacity: 0;
+      transform: scaleX(0.2);
+    }
+    40% {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+    100% {
+      opacity: 0.5;
+      transform: scaleX(1);
+    }
+  }
+
+  /* 4. En-tête de section (Badge, Titre, Sous-titre) */
+  .landing-section.reveal-init .landing-section__header {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.08s,
+                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.08s;
+  }
+
+  .landing-section.is-revealed .landing-section__header {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Halo cyan subtil sur le badge lors de la révélation */
+  .landing-section.is-revealed .landing-badge {
+    animation: badgeGlowPulse 1.2s ease-out 0.25s 1;
+  }
+
+  @keyframes badgeGlowPulse {
+    0% {
+      box-shadow: 0 0 0 rgba(0, 229, 255, 0);
+      border-color: rgba(0, 229, 255, 0.25);
+    }
+    50% {
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+      border-color: rgba(0, 229, 255, 0.55);
+    }
+    100% {
+      box-shadow: 0 0 0 rgba(0, 229, 255, 0);
+      border-color: rgba(0, 229, 255, 0.25);
+    }
+  }
+
+  /* 5. Cartes en cascade (Fonctionnalités, Étapes, Tarifs, FAQ) */
+  .landing-section.reveal-init .landing-feature-card,
+  .landing-section.reveal-init .landing-step-card,
+  .landing-section.reveal-init .landing-pricing-card,
+  .landing-section.reveal-init .landing-faq-item {
+    opacity: 0;
+    transform: translateY(30px) scale(0.98);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.25s ease,
+                box-shadow 0.25s ease;
+    will-change: opacity, transform;
+  }
+
+  .landing-section.is-revealed .landing-feature-card,
+  .landing-section.is-revealed .landing-step-card,
+  .landing-section.is-revealed .landing-pricing-card,
+  .landing-section.is-revealed .landing-faq-item {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* Délais échelonnés ultra-sobres (Stagger) */
+  .landing-section.is-revealed .landing-feature-card:nth-child(1),
+  .landing-section.is-revealed .landing-step-card:nth-child(1),
+  .landing-section.is-revealed .landing-pricing-card:nth-child(1),
+  .landing-section.is-revealed .landing-faq-item:nth-child(1) {
+    transition-delay: 0.12s;
+  }
+
+  .landing-section.is-revealed .landing-feature-card:nth-child(2),
+  .landing-section.is-revealed .landing-step-card:nth-child(2),
+  .landing-section.is-revealed .landing-pricing-card:nth-child(2),
+  .landing-section.is-revealed .landing-faq-item:nth-child(2) {
+    transition-delay: 0.24s;
+  }
+
+  .landing-section.is-revealed .landing-feature-card:nth-child(3),
+  .landing-section.is-revealed .landing-step-card:nth-child(3),
+  .landing-section.is-revealed .landing-pricing-card:nth-child(3),
+  .landing-section.is-revealed .landing-faq-item:nth-child(3) {
+    transition-delay: 0.36s;
+  }
+
+  .landing-section.is-revealed .landing-feature-card:nth-child(4),
+  .landing-section.is-revealed .landing-pricing-card:nth-child(4),
+  .landing-section.is-revealed .landing-faq-item:nth-child(4) {
+    transition-delay: 0.48s;
+  }
+
+  /* 6. Effet d'illumination du numéro d'étape lors de la révélation */
+  .landing-section.is-revealed .landing-step-card__number {
+    animation: stepNumberPulse 1s ease-out 0.4s 1;
+  }
+
+  @keyframes stepNumberPulse {
+    0% {
+      box-shadow: 0 0 0 rgba(0, 229, 255, 0);
+    }
+    50% {
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.45);
+    }
+    100% {
+      box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+    }
+  }
+
+  /* 7. Carte d'Appel à l'action finale (Callout) */
+  .landing-callout.reveal-init .landing-callout__card {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+    transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+                transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+                box-shadow 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.12s;
+  }
+
+  .landing-callout.is-revealed .landing-callout__card {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95), 0 0 45px rgba(0, 229, 255, 0.14);
+  }
+}
+
+
 
 
