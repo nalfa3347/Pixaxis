@@ -16,6 +16,7 @@ import {
 import { getFefoActiveLot, deductCreditsForGeneration } from '@/lib/credit-manager';
 import { invalidateUserCache } from '@/app/api/images/route';
 import { validateImageFiles, processAllImagesForOpenAI } from '@/lib/image-processor';
+import sharp from 'sharp';
 
 export async function POST(request) {
   let queueId = null;
@@ -166,7 +167,22 @@ export async function POST(request) {
       const ideogramForm = new FormData();
       ideogramForm.append('text_prompt', finalPrompt);
       ideogramForm.append('resolution', ideogramResolution);
-      ideogramForm.append('image_weight', '60'); // Préservation haute fidélité de la structure et matière du produit
+
+      // Vérification de compatibilité d'aspect ratio pour le paramètre image_weight
+      try {
+        const meta = await sharp(processedBuffers[0]).metadata();
+        const inputRatio = (meta.width || 1024) / (meta.height || 1024);
+        let targetRatio = 1.0;
+        if (ideogramResolution === '1440x2560') targetRatio = 1440 / 2560;
+        else if (ideogramResolution === '2560x1440') targetRatio = 2560 / 1440;
+
+        // Ideogram 4.0 n'accepte image_weight que si le ratio d'aspect est compatible
+        if (Math.abs(inputRatio - targetRatio) < 0.08) {
+          ideogramForm.append('image_weight', '60');
+        }
+      } catch (metaErr) {
+        console.warn('Vérification ratio image ignorée:', metaErr);
+      }
 
       const referenceBlob = new Blob([processedBuffers[0]], { type: 'image/png' });
       ideogramForm.append('image', referenceBlob, 'product_reference.png');
@@ -177,19 +193,26 @@ export async function POST(request) {
           'Api-Key': ideogramApiKey.trim(),
         },
         body: ideogramForm,
+        signal: AbortSignal.timeout(120000),
       });
 
       const ideogramData = await ideogramRes.json().catch(() => ({}));
       if (!ideogramRes.ok) {
         const status = ideogramRes.status;
-        if (status === 401) {
-          throw new Error('Clé API Ideogram non autorisée ou invalide. Vérifiez IDEOGRAM_API_KEY dans votre configuration serveur. Aucun crédit n’a été débité.');
+        if (status === 400) {
+          throw new Error(ideogramData.detail || ideogramData.message || 'Paramètres de requête non acceptés par l\'API Ideogram 4.0 (400). Aucun crédit n\'a été débité.');
         }
-        if (status === 429) {
-          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé. Aucun crédit n’a été débité.');
+        if (status === 401) {
+          throw new Error('Clé API Ideogram non autorisée ou invalide (401). Vérifiez IDEOGRAM_API_KEY dans vos variables d’environnement serveur. Aucun crédit n’a été débité.');
+        }
+        if (status === 402) {
+          throw new Error('Solde de crédits Ideogram insuffisant sur votre compte développeur (402). Veuillez recharger vos crédits sur api.ideogram.ai. Aucun crédit Pixaxis n\'a été débité.');
         }
         if (status === 422) {
-          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité Ideogram. Aucun crédit n’a été débité.');
+          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité ou modération Ideogram 4.0 (422). Aucun crédit n’a été débité.');
+        }
+        if (status === 429) {
+          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé (429). Veuillez réessayer dans quelques instants. Aucun crédit n’a été débité.');
         }
         throw new Error(ideogramData.detail || ideogramData.message || ideogramData.error || `Échec de l'appel à l'API Ideogram 4.0 (remix - code ${status}). Aucun crédit n'a été débité.`);
       }
@@ -198,37 +221,44 @@ export async function POST(request) {
       const directImageUrl = resultObj?.url || null;
 
       if (!directImageUrl) {
-        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0 (remix).');
+        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0 (remix). Aucun crédit n\'a été débité.');
       }
 
       // Téléchargement et stockage permanent dans Supabase Storage
       generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, directImageUrl, null);
 
     } else {
-      // ═══ CHEMIN TEXTE SEUL : endpoint /v1/ideogram-v4/generate ═══
-      const ideogramForm = new FormData();
-      ideogramForm.append('text_prompt', finalPrompt);
-      ideogramForm.append('resolution', ideogramResolution);
-
+      // ═══ CHEMIN TEXTE SEUL : endpoint /v1/ideogram-v4/generate (application/json) ═══
       const ideogramRes = await fetch(IDEOGRAM_V4_GENERATE_ENDPOINT, {
         method: 'POST',
         headers: {
           'Api-Key': ideogramApiKey.trim(),
+          'Content-Type': 'application/json',
         },
-        body: ideogramForm,
+        body: JSON.stringify({
+          text_prompt: finalPrompt,
+          resolution: ideogramResolution,
+        }),
+        signal: AbortSignal.timeout(120000),
       });
 
       const ideogramData = await ideogramRes.json().catch(() => ({}));
       if (!ideogramRes.ok) {
         const status = ideogramRes.status;
-        if (status === 401) {
-          throw new Error('Clé API Ideogram non autorisée ou invalide. Vérifiez IDEOGRAM_API_KEY dans votre configuration serveur. Aucun crédit n’a été débité.');
+        if (status === 400) {
+          throw new Error(ideogramData.detail || ideogramData.message || 'Paramètres de requête non acceptés par l\'API Ideogram 4.0 (400). Aucun crédit n\'a été débité.');
         }
-        if (status === 429) {
-          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé. Aucun crédit n’a été débité.');
+        if (status === 401) {
+          throw new Error('Clé API Ideogram non autorisée ou invalide (401). Vérifiez IDEOGRAM_API_KEY dans vos variables d’environnement serveur. Aucun crédit n’a été débité.');
+        }
+        if (status === 402) {
+          throw new Error('Solde de crédits Ideogram insuffisant sur votre compte développeur (402). Veuillez recharger vos crédits sur api.ideogram.ai. Aucun crédit Pixaxis n\'a été débité.');
         }
         if (status === 422) {
-          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité Ideogram. Aucun crédit n’a été débité.');
+          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité ou modération Ideogram 4.0 (422). Aucun crédit n’a été débité.');
+        }
+        if (status === 429) {
+          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé (429). Veuillez réessayer dans quelques instants. Aucun crédit n’a été débité.');
         }
         throw new Error(ideogramData.detail || ideogramData.message || ideogramData.error || `Échec de l'appel à l'API Ideogram 4.0 (generate - code ${status}). Aucun crédit n'a été débité.`);
       }
@@ -237,7 +267,7 @@ export async function POST(request) {
       const directImageUrl = resultObj?.url || null;
 
       if (!directImageUrl) {
-        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0.');
+        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0. Aucun crédit n\'a été débité.');
       }
 
       generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, directImageUrl, null);
@@ -301,6 +331,12 @@ export async function POST(request) {
           completed_at: new Date().toISOString(),
         })
         .eq('id', queueId);
+    }
+
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      return NextResponse.json({
+        error: 'La génération a dépassé le délai imparti de 120 secondes. L’API Ideogram 4.0 n’a pas répondu à temps. Aucun crédit n’a été débité.',
+      }, { status: 504 });
     }
 
     return NextResponse.json({

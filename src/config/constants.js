@@ -238,7 +238,7 @@ export const PROMPT_TEMPLATES = {
   },
 };
 
-export const MAX_ADDITIONAL_PROMPT_LENGTH = 150;
+export const MAX_ADDITIONAL_PROMPT_LENGTH = 500;
 export const MAX_CONCURRENT_GENERATIONS = 10;
 
 /**
@@ -254,32 +254,28 @@ export const MAX_CONCURRENT_GENERATIONS = 10;
  * @param {string} type - ID du type de création
  * @param {string} style - ID du style visuel
  * @param {number} imageCount - Nombre d'images de référence fournies (0, 1, 2 ou 3)
- * @param {string} [additionalPrompt] - Détail optionnel saisi par l'utilisateur (max 150 chars)
+ * @param {string} [additionalPrompt] - Détail optionnel saisi par l'utilisateur (max 500 chars)
  * @returns {string} Prompt structuré pour l'API Ideogram 4.0
  */
 export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') {
-  const basePrompt = PROMPT_TEMPLATES[type]?.[style];
-  
-  if (!basePrompt) {
-    throw new Error(`Combinaison type/style invalide: ${type}/${style}`);
-  }
-
+  const basePrompt = PROMPT_TEMPLATES[type]?.[style] || 'Create a high-impact professional commercial advertising visual';
   let prompt = basePrompt;
 
-  // Instructions spécifiques pour la génération de la scène publicitaire autour du produit
+  const sanitized = additionalPrompt && typeof additionalPrompt === 'string' ? additionalPrompt.trim().slice(0, MAX_ADDITIONAL_PROMPT_LENGTH) : '';
+
+  if (sanitized) {
+    prompt += `.\n\nCREATIVE ADVERTISING DIRECTION & SCENARIO: ${sanitized}`;
+  }
+
+  // Instructions strictes pour la fidélité produit et la mise en scène publicitaire (Ideogram 4.0)
   if (imageCount > 0) {
-    prompt += '.\n\nCOMMERCIAL ADVERTISING SCENE (IDEOGRAM 4.0):\n- Product photo is the primary reference: preserve exact product shape, materials, colors, components, and package identity with maximum fidelity.\n- Ideogram 4 generates the surrounding commercial advertising scene, lighting, backdrop, and staging around the product.\n- Do NOT generate distorted artificial text or logos; official brand logo is maintained separately and composited cleanly by the application.';
+    prompt += '.\n\nSTRICT PRODUCT FIDELITY & COMMERCIAL STAGING (IDEOGRAM 4.0):\n' +
+      '- The input product image is the PRIMARY REFERENCE: preserve with maximum fidelity the exact shape, proportions, colors, materials, textures, components, details, and overall visual appearance of the product.\n' +
+      '- Generate an authentic, premium advertising scene, tailored environment, cinematic commercial lighting, and dynamic composition around the product matching the creative direction.\n' +
+      '- Do not alter or hallucinate artificial brand names or distorted text; official brand logos are preserved separately and integrated cleanly by the application.';
   }
 
-  // Ajout du détail optionnel de l'utilisateur s'il est renseigné (max 150 caractères)
-  if (additionalPrompt && typeof additionalPrompt === 'string') {
-    const sanitized = additionalPrompt.trim().slice(0, MAX_ADDITIONAL_PROMPT_LENGTH);
-    if (sanitized) {
-      prompt += `.\nAdditional detail: ${sanitized}`;
-    }
-  }
-
-  prompt += '.\nUltra high quality, professional commercial photography, pristine advertising composition.';
+  prompt += '.\nUltra high resolution, flawless commercial photography, high-conversion advertising composition.';
 
   return prompt;
 }
