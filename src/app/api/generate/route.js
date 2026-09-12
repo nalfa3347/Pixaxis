@@ -140,7 +140,7 @@ export async function POST(request) {
       combinedPromptDetail = combinedPromptDetail ? `${combinedPromptDetail}. ${brandContext}` : brandContext;
     }
 
-    const finalPrompt = buildPrompt(type, style, imageFiles.length, combinedPromptDetail);
+    const finalPrompt = buildPrompt(type, style, imageFiles.length, combinedPromptDetail, format);
 
     // ─── 6. Appel API de génération d'image (STRICTEMENT IDEOGRAM 4.0) ───
     let generatedUrl = '';

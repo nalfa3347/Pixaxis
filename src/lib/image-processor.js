@@ -15,18 +15,18 @@ import { MAX_REFERENCE_IMAGES, MAX_IMAGE_SIZE_MB, MAX_IMAGE_DIMENSION_SERVER_PX,
  * @param {number} index - Index de l'image (0, 1, 2)
  * @returns {{ valid: boolean, error?: string }}
  */
-export function validateImageFile(file, index) {
+export function validateImageFile(file, index = 0) {
   if (!file || !(file instanceof Blob)) {
-    return { valid: false, error: `Image ${index + 1} : fichier invalide ou manquant.` };
+    return { valid: false, error: 'Fichier image invalide ou manquant.' };
   }
 
   const maxBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
   if (file.size > maxBytes) {
-    return { valid: false, error: `Image ${index + 1} : taille (${(file.size / 1024 / 1024).toFixed(1)} Mo) dépasse la limite de ${MAX_IMAGE_SIZE_MB} Mo.` };
+    return { valid: false, error: 'Cette image est trop lourde. Taille maximale : 5 MB.' };
   }
 
   if (file.type && !ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-    return { valid: false, error: `Image ${index + 1} : format "${file.type}" non accepté. Formats autorisés : JPEG, PNG, WebP, GIF.` };
+    return { valid: false, error: `Format d'image non accepté (${file.type}). Formats autorisés : JPEG, PNG, WebP, GIF.` };
   }
 
   return { valid: true };
@@ -43,7 +43,7 @@ export function validateImageFiles(files) {
   }
 
   if (files.length > MAX_REFERENCE_IMAGES) {
-    return { valid: false, error: `Maximum ${MAX_REFERENCE_IMAGES} images de référence autorisées. Vous en avez envoyé ${files.length}.` };
+    return { valid: false, error: 'Maximum 1 image produit par génération autorisée.' };
   }
 
   for (let i = 0; i < files.length; i++) {

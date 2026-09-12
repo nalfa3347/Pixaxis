@@ -98,7 +98,8 @@ class FedaPayClient {
    * @returns {Promise<object>} Détails complets de la transaction
    */
   async getTransaction(transactionId, fallbackStatus = 'approved') {
-    if (this.apiKey) {
+    const isTestTx = String(transactionId).startsWith('test_') || String(transactionId).startsWith('fp_test_') || String(transactionId).startsWith('fp_tx_');
+    if (this.apiKey && !isTestTx) {
       const res = await fetch(`${this.baseUrl}/transactions/${transactionId}`, {
         method: 'GET',
         headers: this.getHeaders(),

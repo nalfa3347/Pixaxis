@@ -154,7 +154,7 @@ export function calculateExpirationDate(packOrId, fromDate = new Date()) {
 }
 
 // ─── Limites et validation ───────────────────────────────────────
-export const MAX_REFERENCE_IMAGES = 3;
+export const MAX_REFERENCE_IMAGES = 1; // Règle stricte : 1 image produit par génération
 export const MAX_IMAGE_DIMENSION_PX = 1024;
 export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_UPLOAD_SIZE_MB = 10;
@@ -232,9 +232,9 @@ export const PROMPT_TEMPLATES = {
     '3d': 'Create a stylish 3D-rendered character avatar with modern CGI lighting, expressive features, and polished textures',
   },
   product: {
-    realistic: 'Create a high-impact commercial advertising visual and product packshot, featuring the featured product staged on a premium pedestal or natural setting with dynamic splashes, studio lighting, crisp commercial packaging details, and high-conversion advertising composition',
-    minimalist: 'Create a clean, elegant luxury product advertisement with editorial studio lighting, refined composition, subtle pedestal staging, and ample breathing room for commercial appeal',
-    '3d': 'Create a dynamic 3D commercial product advertisement with dramatic lighting, floating elements, energy particles, modern advertising composition, and stunning product rendering',
+    realistic: 'Create a high-impact commercial advertising visual and product hero campaign. The product is staged in a spectacular professional advertising environment, featuring tailored pedestals (such as dark obsidian, wet stone, or sculpted noble textures), volumetric cinematic studio lighting, crisp reflections, dynamic splashes or atmospheric steam, depth of field, and high-conversion commercial art direction',
+    minimalist: 'Create an ultra-clean, elegant luxury product advertisement with refined editorial studio lighting, sophisticated monochromatic or muted color harmony, architectural pedestal staging, strong visual hierarchy, and ample breathing room for a premium commercial look',
+    '3d': 'Create a dynamic commercial product advertisement with dramatic lighting, modern 3D depth, floating particle effects, energetic reflections, bold advertising layout, and high-end commercial visual impact',
   },
 };
 
@@ -253,11 +253,12 @@ export const MAX_CONCURRENT_GENERATIONS = 10;
  * 
  * @param {string} type - ID du type de création
  * @param {string} style - ID du style visuel
- * @param {number} imageCount - Nombre d'images de référence fournies (0, 1, 2 ou 3)
+ * @param {number} imageCount - Nombre d'images de référence fournies (0 ou 1)
  * @param {string} [additionalPrompt] - Détail optionnel saisi par l'utilisateur (max 500 chars)
+ * @param {string} [format] - Format d'image ('1024x1024', '1024x1792', '1792x1024')
  * @returns {string} Prompt structuré pour l'API Ideogram 4.0
  */
-export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') {
+export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '', format = '1024x1024') {
   const basePrompt = PROMPT_TEMPLATES[type]?.[style] || 'Create a high-impact professional commercial advertising visual';
   let prompt = basePrompt;
 
@@ -267,15 +268,26 @@ export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') 
     prompt += `.\n\nCREATIVE ADVERTISING DIRECTION & SCENARIO: ${sanitized}`;
   }
 
-  // Instructions strictes pour la fidélité produit et la mise en scène publicitaire (Ideogram 4.0)
-  if (imageCount > 0) {
-    prompt += '.\n\nSTRICT PRODUCT FIDELITY & COMMERCIAL STAGING (IDEOGRAM 4.0):\n' +
-      '- The input product image is the PRIMARY REFERENCE: preserve with maximum fidelity the exact shape, proportions, colors, materials, textures, components, details, and overall visual appearance of the product.\n' +
-      '- Generate an authentic, premium advertising scene, tailored environment, cinematic commercial lighting, and dynamic composition around the product matching the creative direction.\n' +
-      '- Do not alter or hallucinate artificial brand names or distorted text; official brand logos are preserved separately and integrated cleanly by the application.';
+  // Cadrage et composition selon le format
+  if (format === '1024x1792') {
+    prompt += '.\n\nFORMAT & COMPOSITION: Dominant, commanding vertical commercial composition (9:16). The product is heroically framed as the central anchor with vertical visual hierarchy, cinematic studio depth, and balanced negative space.';
+  } else if (format === '1792x1024') {
+    prompt += '.\n\nFORMAT & COMPOSITION: Wide cinematic commercial presentation (16:9) with expansive advertising depth, sophisticated background environment, and professional billboard layout.';
+  } else {
+    prompt += '.\n\nFORMAT & COMPOSITION: Perfectly centered, iconic commercial square composition (1:1) with balanced symmetry and strong product focus.';
   }
 
-  prompt += '.\nUltra high resolution, flawless commercial photography, high-conversion advertising composition.';
+  // Instructions strictes pour la fidélité produit et la mise en scène publicitaire (Ideogram 4.0)
+  if (imageCount > 0) {
+    prompt += '.\n\nABSOLUTE PRODUCT FIDELITY & COMMERCIAL STAGING (IDEOGRAM 4.0):\n' +
+      '- CRITICAL: The input product image is the ABSOLUTE PRIMARY REFERENCE. Preserve with flawless fidelity its exact shape, geometry, proportions, authentic colors, textures, materials, packaging, and visible label typography.\n' +
+      '- DO NOT alter, reshape, distort, or redesign the product. Adapt the commercial advertising environment, pedestal, reflections, splashes, and cinematic lighting around the product, NEVER adapt the product to the style.\n' +
+      '- The scene must look like a high-end commercial advertising studio production, not an isolated product on a plain background.\n' +
+      '- High-contrast, sharp photographic rendering, atmospheric depth, realistic reflections and physical textures.\n' +
+      '- Official brand logos are preserved separately and will be integrated cleanly without AI deformation.';
+  }
+
+  prompt += '.\nUltra high resolution, 8k commercial photography, award-winning advertising art direction.';
 
   return prompt;
 }

@@ -28,7 +28,7 @@ export async function POST(request) {
     // 1. Validation stricte de la taille (max 5 MB)
     if (file.size > MAX_IMAGE_BYTES) {
       return NextResponse.json(
-        { error: 'Cette image est trop lourde. La taille maximale est de 5 MB.' },
+        { error: 'Cette image est trop lourde. Taille maximale : 5 MB.' },
         { status: 400 }
       );
     }

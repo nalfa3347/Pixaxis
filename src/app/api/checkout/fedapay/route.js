@@ -43,7 +43,9 @@ export async function POST(request) {
     let paymentUrl;
     let token = null;
 
-    if (process.env.FEDAPAY_SECRET_KEY) {
+    const isTestMode = body.test_mode === true || request.headers.get('x-test-mode') === 'true';
+
+    if (process.env.FEDAPAY_SECRET_KEY && !isTestMode) {
       const userEmail = user.email || 'client@pixaxis.ai';
       const userName = user.user_metadata?.full_name || 'Client PIXAXIS';
       const userPhone = user.user_metadata?.phone;

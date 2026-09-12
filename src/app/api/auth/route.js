@@ -62,30 +62,16 @@ export async function POST(request) {
         const { error: profErr } = await supabaseAdmin.from('profiles').upsert(userProfile);
         if (profErr) console.warn('Erreur upsert profile:', profErr);
 
-        // Initialiser un lot de crédits d'accueil (1 premier visuel pro offert pour l'onboarding)
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30);
-        const { error: credErr } = await supabaseAdmin.from('credits').insert({
-          user_id: userId,
-          pack_id: 'decouverte',
-          montant_achete: 0,
-          credits_initiaux: 200,
-          credits_restants: 200,
-          cout_par_generation: 200,
-          date_achat: new Date().toISOString(),
-          date_expiration: expiryDate.toISOString(),
-          fedapay_transaction_id: `welcome_${userId}`,
-        });
-        if (credErr) console.warn('Erreur création lot de bienvenue:', credErr);
-
+        // Règle d'or : AUCUN crédit gratuit d'accueil. L'utilisateur doit obligatoirement acheter un forfait payant.
         return NextResponse.json({
           success: true,
           action: 'created',
           isNewUser: true,
           hasCompletedOnboarding: false,
+          requiresPlan: true,
           targetEmail,
           userId: userId,
-          message: 'Compte créé avec succès !',
+          message: 'Compte créé avec succès ! Veuillez choisir votre forfait pour commencer.',
         });
       }
 

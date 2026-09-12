@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LogoPX from '@/components/LogoPX';
 import { usePixaxis } from '@/context/PixaxisContext';
-import { FORMATS, CREATION_TYPES, VISUAL_STYLES } from '@/config/constants';
+import { FORMATS, CREATION_TYPES, VISUAL_STYLES, CREDIT_PACKS } from '@/config/constants';
 import { downloadImage } from '@/lib/download-helper';
 
 export default function OnboardingPage() {
@@ -19,7 +19,18 @@ export default function OnboardingPage() {
     addImportedImages,
     addCreatedImage,
     fetchCredits,
+    creditsData,
   } = usePixaxis();
+
+  // Forfait & Paiement Obligatoire (0 génération permise avant confirmation réelle du paiement)
+  const [selectedPackId, setSelectedPackId] = useState('createur');
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [pendingTxId, setPendingTxId] = useState(null);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState('');
+
+  const hasPaid = (creditsData?.total_credits || 0) > 0;
 
   // Étape courante (1 à 4, ou 'generating', 'result')
   const [currentStep, setCurrentStep] = useState(1);
@@ -74,25 +85,119 @@ export default function OnboardingPage() {
     }
   }, [authInitialized, isAuthenticated, router]);
 
-  // Initialiser le nom si stocké localement
+  // Initialiser les crédits et le nom
+  useEffect(() => {
+    fetchCredits();
+  }, [fetchCredits]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('pixaxis_user_name');
       const storedPhone = localStorage.getItem('pixaxis_user_phone');
       if (storedName && !fullName) setFullName(storedName);
       if (storedPhone && !phone) setPhone(storedPhone);
+
+      // Traitement automatique d'un retour de paiement FedaPay
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentParam = urlParams.get('payment');
+      const txId = urlParams.get('id') || urlParams.get('transaction_id');
+      if (paymentParam === 'return' && txId) {
+        setIsVerifyingPayment(true);
+        fetch('/api/checkout/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ transaction_id: txId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.approved) {
+              fetchCredits(true);
+              setPaymentSuccessMsg('Paiement confirmé ! Votre accès est débloqué.');
+            }
+          })
+          .catch((err) => console.warn('Erreur vérification paiement return:', err))
+          .finally(() => setIsVerifyingPayment(false));
+      }
     }
-  }, []);
+  }, [getAuthHeaders, fetchCredits]);
+
+  // ─── Gestion du Paiement Obligatoire FedaPay ─────────────────────
+  const handleInitiatePayment = async () => {
+    setIsPaying(true);
+    setPaymentError('');
+    setPaymentSuccessMsg('');
+    try {
+      const res = await fetch('/api/checkout/fedapay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ pack_id: selectedPackId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de l’initialisation du paiement');
+      }
+
+      setPendingTxId(data.transaction_id);
+
+      if (data.payment_url && !data.payment_url.includes('localhost') && data.token) {
+        window.location.href = data.payment_url;
+      } else {
+        setPaymentSuccessMsg('Transaction initialisée. Vous pouvez valider votre paiement ci-dessous.');
+      }
+    } catch (err) {
+      console.warn('Erreur paiement:', err);
+      setPaymentError(err.message || 'Impossible d’initialiser le paiement.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  const handleConfirmSandboxPayment = async () => {
+    if (!pendingTxId) return;
+    setIsVerifyingPayment(true);
+    setPaymentError('');
+    try {
+      const res = await fetch('/api/checkout/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ transaction_id: pendingTxId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.approved) {
+        throw new Error(data.message || data.error || 'Le paiement n’a pas pu être confirmé.');
+      }
+
+      // Recharger immédiatement les crédits en base pour débloquer l'accès
+      await fetchCredits(true);
+      setPaymentSuccessMsg('Paiement confirmé avec succès ! Vos crédits sont actifs.');
+    } catch (err) {
+      console.warn('Erreur confirmation paiement:', err);
+      setPaymentError(err.message || 'Échec de la confirmation du paiement.');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
 
   // ─── Gestion de l'image Produit (Étape 1) ───────────────────────
   const handleProductFile = async (file) => {
     setProductError('');
     if (!file) return;
 
-    // Validation stricte 5 Mo
+    // Validation stricte 5 Mo avec message exact
     const MAX_BYTES = 5 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
-      setProductError('Cette image est trop lourde. La taille maximale est de 5 MB.');
+      setProductError('Cette image est trop lourde. Taille maximale : 5 MB.');
       return;
     }
 
@@ -338,45 +443,114 @@ export default function OnboardingPage() {
             <Link href="/" className="onboarding-header__logo" aria-label="PIXAXIS">
               <LogoPX size={28} withText={true} />
             </Link>
-            <span className="onboarding-header__badge">Configuration Marque</span>
+            <span className="onboarding-header__badge">Studio Publicitaire</span>
           </div>
 
           <div className="onboarding-header__right">
-            {typeof currentStep === 'number' && (
-              <span className="onboarding-header__step-indicator">
-                Étape {currentStep} sur 4
-              </span>
+            {hasPaid && (
+              <button
+                type="button"
+                onClick={finishOnboardingAndEnterStudio}
+                className="onboarding-header__skip-all-btn"
+              >
+                Passer directement au Studio →
+              </button>
             )}
-            <button
-              type="button"
-              onClick={finishOnboardingAndEnterStudio}
-              className="onboarding-header__skip-all-btn"
-            >
-              Passer directement au Studio →
-            </button>
           </div>
         </div>
-
-        {/* Barre de progression discrète en haut */}
-        {typeof currentStep === 'number' && (
-          <div className="onboarding-progress-bar">
-            <div
-              className="onboarding-progress-bar__fill"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
-            />
-          </div>
-        )}
       </header>
 
       {/* ─── Corps Principal ─── */}
       <main className="onboarding-main" role="main">
         {/* ════════════════════════════════════════════════════════════
-            ÉTAPE 1 — PREMIER PRODUIT (100% Facultatif)
+            ÉTAPE PRÉALABLE — CHOIX DU FORFAIT ET PAIEMENT OBLIGATOIRE
+            (Aucune génération autorisée sans confirmation réelle du paiement)
             ════════════════════════════════════════════════════════════ */}
-        {currentStep === 1 && (
+        {authInitialized && creditsData && !hasPaid && currentStep !== 'generating' && currentStep !== 'result' && (
           <div className="onboarding-card">
             <div className="onboarding-card__header">
-              <span className="onboarding-step-tag">Étape 1 · Produit</span>
+              <h1 className="onboarding-title">Activez votre accès Studio</h1>
+              <p className="onboarding-subtitle">
+                Pour créer vos visuels publicitaires professionnels, choisissez votre premier forfait de crédits.
+              </p>
+            </div>
+
+            {paymentError && (
+              <div className="onboarding-error-banner" role="alert">
+                ⚠️ {paymentError}
+              </div>
+            )}
+
+            {paymentSuccessMsg && (
+              <div className="onboarding-success-banner" role="status">
+                ✓ {paymentSuccessMsg}
+              </div>
+            )}
+
+            {/* Grille des 4 forfaits officiels */}
+            <div className="onboarding-plans-grid">
+              {CREDIT_PACKS.map((pack) => {
+                const isSelected = selectedPackId === pack.id;
+                return (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    onClick={() => setSelectedPackId(pack.id)}
+                    className={`onboarding-plan-card ${isSelected ? 'onboarding-plan-card--active' : ''}`}
+                  >
+                    {pack.popular && <span className="onboarding-plan-badge">Recommandé</span>}
+                    <div className="onboarding-plan-name">{pack.name}</div>
+                    <div className="onboarding-plan-price">
+                      {pack.price_fcfa.toLocaleString('fr-FR')} <span className="onboarding-plan-currency">FCFA</span>
+                    </div>
+                    <div className="onboarding-plan-credits">
+                      {pack.images_count} visuels ({pack.credits_credited.toLocaleString('fr-FR')} crédits)
+                    </div>
+                    <div className="onboarding-plan-validity">
+                      Validité des crédits : 3 mois après achat
+                    </div>
+                    <div className="onboarding-plan-radio">
+                      {isSelected ? '● Sélectionné' : '○ Choisir'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="onboarding-validity-notice">
+              ℹ️ Tous les forfaits ont une validité garantie de 3 mois après achat. Les crédits inutilisés restent consommables pendant toute cette période.
+            </div>
+
+            <div className="onboarding-actions" style={{ flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={handleInitiatePayment}
+                disabled={isPaying || isVerifyingPayment}
+                className="onboarding-final-btn"
+              >
+                <span>{isPaying ? 'Initialisation...' : 'Payer avec FedaPay (Mobile Money / Carte) →'}</span>
+              </button>
+
+              {pendingTxId && (
+                <button
+                  type="button"
+                  onClick={handleConfirmSandboxPayment}
+                  disabled={isVerifyingPayment}
+                  className="onboarding-btn-sandbox"
+                >
+                  <span>{isVerifyingPayment ? 'Vérification en cours...' : '⚡ Confirmer le paiement (Test Sandbox)'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════
+            ÉTAPE 1 — PREMIER PRODUIT (100% Facultatif)
+            ════════════════════════════════════════════════════════════ */}
+        {hasPaid && currentStep === 1 && (
+          <div className="onboarding-card">
+            <div className="onboarding-card__header">
               <h1 className="onboarding-title">Ajoutez votre premier produit</h1>
               <p className="onboarding-subtitle">
                 Vous pourrez aussi le faire plus tard.
@@ -476,7 +650,7 @@ export default function OnboardingPage() {
                 onClick={skipStep}
                 className="onboarding-btn-ghost"
               >
-                Passer pour l’instant
+                Passer
               </button>
             </div>
           </div>
@@ -485,11 +659,10 @@ export default function OnboardingPage() {
         {/* ════════════════════════════════════════════════════════════
             ÉTAPE 2 — INFORMATIONS BUSINESS (100% Facultatif)
             ════════════════════════════════════════════════════════════ */}
-        {currentStep === 2 && (
+        {hasPaid && currentStep === 2 && (
           <div className="onboarding-card">
             <div className="onboarding-card__header">
-              <span className="onboarding-step-tag">Étape 2 · Informations Marque</span>
-              <h1 className="onboarding-title">Votre activité</h1>
+              <h1 className="onboarding-title">Informations business</h1>
               <p className="onboarding-subtitle">
                 Ces informations permettront à l'IA d'adapter automatiquement chaque publicité à votre commerce. Tous les champs sont facultatifs.
               </p>
@@ -569,7 +742,7 @@ export default function OnboardingPage() {
                   onClick={skipStep}
                   className="onboarding-btn-ghost"
                 >
-                  Passer pour l’instant
+                  Passer
                 </button>
               </div>
             </form>
@@ -579,10 +752,9 @@ export default function OnboardingPage() {
         {/* ════════════════════════════════════════════════════════════
             ÉTAPE 3 — FORMAT (100% Facultatif)
             ════════════════════════════════════════════════════════════ */}
-        {currentStep === 3 && (
+        {hasPaid && currentStep === 3 && (
           <div className="onboarding-card">
             <div className="onboarding-card__header">
-              <span className="onboarding-step-tag">Étape 3 · Format</span>
               <h1 className="onboarding-title">Format privilégié</h1>
               <p className="onboarding-subtitle">
                 Choisissez le format le plus fréquent pour vos publicités. Vous pourrez toujours le modifier lors de chaque génération.
@@ -632,7 +804,7 @@ export default function OnboardingPage() {
                 onClick={skipStep}
                 className="onboarding-btn-ghost"
               >
-                Passer pour l’instant
+                Passer
               </button>
             </div>
           </div>
@@ -641,11 +813,10 @@ export default function OnboardingPage() {
         {/* ════════════════════════════════════════════════════════════
             ÉTAPE 4 — PREMIÈRE DEMANDE (100% Facultatif)
             ════════════════════════════════════════════════════════════ */}
-        {currentStep === 4 && (
+        {hasPaid && currentStep === 4 && (
           <div className="onboarding-card">
             <div className="onboarding-card__header">
-              <span className="onboarding-step-tag">Étape 4 · Demande Créative</span>
-              <h1 className="onboarding-title">Que voulez-vous créer ?</h1>
+              <h1 className="onboarding-title">Demande créative</h1>
               <p className="onboarding-subtitle">
                 Donnez une directive simple à l'IA ou laissez-la concevoir un visuel publicitaire percutant selon vos choix précédents.
               </p>
@@ -835,7 +1006,7 @@ export default function OnboardingPage() {
                   onClick={() => downloadImage(generatedImage.url, 'pixaxis-visuel.png')}
                   className="onboarding-btn-download"
                 >
-                  <span>📥 Télécharger l’image</span>
+                  <span>Télécharger</span>
                 </button>
 
                 <button
@@ -843,7 +1014,7 @@ export default function OnboardingPage() {
                   onClick={() => setIsLogoModalOpen(true)}
                   className="onboarding-btn-logo"
                 >
-                  <span>🏷️ Ajouter mon logo</span>
+                  <span>Ajouter mon logo</span>
                 </button>
               </div>
 
@@ -1008,12 +1179,6 @@ export default function OnboardingPage() {
           gap: 1.25rem;
         }
 
-        .onboarding-header__step-indicator {
-          font-size: 0.82rem;
-          color: rgba(255, 255, 255, 0.65);
-          font-weight: 500;
-        }
-
         .onboarding-header__skip-all-btn {
           background: transparent;
           border: none;
@@ -1028,17 +1193,130 @@ export default function OnboardingPage() {
           color: #00e5ff;
         }
 
-        .onboarding-progress-bar {
-          width: 100%;
-          height: 2px;
-          background: rgba(255, 255, 255, 0.05);
+        /* Forfaits & Packs de Crédits */
+        .onboarding-plans-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1rem;
         }
 
-        .onboarding-progress-bar__fill {
-          height: 100%;
-          background: linear-gradient(90deg, #00b4d8, #00e5ff);
-          transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+        @media (max-width: 600px) {
+          .onboarding-plans-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .onboarding-plan-card {
+          background: #111111;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 14px;
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          cursor: pointer;
+          text-align: left;
+          position: relative;
+          transition: all 0.2s ease;
+          color: #ffffff;
+        }
+
+        .onboarding-plan-card:hover {
+          border-color: rgba(0, 229, 255, 0.5);
+          background: #151515;
+          transform: translateY(-2px);
+        }
+
+        .onboarding-plan-card--active {
+          border-color: #00e5ff !important;
+          background: rgba(0, 229, 255, 0.06) !important;
+          box-shadow: 0 0 25px rgba(0, 229, 255, 0.15);
+        }
+
+        .onboarding-plan-badge {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #00e5ff;
+          color: #000000;
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 2px 7px;
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+
+        .onboarding-plan-name {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #ffffff;
+        }
+
+        .onboarding-plan-price {
+          font-size: 1.45rem;
+          font-weight: 800;
+          color: #00e5ff;
+        }
+
+        .onboarding-plan-currency {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .onboarding-plan-credits {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.85);
+          font-weight: 500;
+        }
+
+        .onboarding-plan-validity {
+          font-size: 0.75rem;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .onboarding-plan-radio {
+          font-size: 0.8rem;
+          color: #00e5ff;
+          margin-top: 0.25rem;
+          font-weight: 600;
+        }
+
+        .onboarding-validity-notice {
+          font-size: 0.8rem;
+          color: rgba(255, 255, 255, 0.6);
+          background: rgba(255, 255, 255, 0.03);
+          padding: 0.65rem 0.9rem;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          line-height: 1.4;
+        }
+
+        .onboarding-btn-sandbox {
+          background: rgba(0, 229, 255, 0.1);
+          border: 1px dashed #00e5ff;
+          color: #00e5ff;
+          font-size: 0.88rem;
+          font-weight: 600;
+          border-radius: 12px;
+          padding: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+        }
+
+        .onboarding-btn-sandbox:hover:not(:disabled) {
+          background: rgba(0, 229, 255, 0.2);
+        }
+
+        .onboarding-success-banner {
+          background: rgba(0, 230, 118, 0.12);
+          border: 1px solid rgba(0, 230, 118, 0.4);
+          color: #00e676;
+          font-size: 0.85rem;
+          padding: 0.75rem 1rem;
+          border-radius: 10px;
+          line-height: 1.4;
         }
 
         /* Conteneur principal */

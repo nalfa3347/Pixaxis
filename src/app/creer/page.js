@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import LogoPX from '@/components/LogoPX';
 import { 
   CREATION_TYPES, 
   VISUAL_STYLES, 
@@ -222,6 +223,11 @@ export default function CreerPage() {
       return;
     }
 
+    if (!creditsData || (creditsData.total_credits || 0) <= 0) {
+      setErrorMessage('Aucun crédit actif. Vous devez souscrire à un forfait avant de pouvoir créer des visuels.');
+      return;
+    }
+
     if (!queueStatus.can_queue) {
       setErrorMessage(`Vous avez déjà ${queueStatus.max_limit} générations en cours, veuillez attendre qu'une place se libère.`);
       return;
@@ -230,6 +236,16 @@ export default function CreerPage() {
     // 1. Sauvegarder les images de référence et le prompt pour cette tâche
     const taskReferenceImages = [...selectedImages];
     const taskPrompt = additionalPrompt.trim();
+
+    if (taskReferenceImages.length > 1) {
+      setErrorMessage('Maximum 1 image produit par génération autorisée.');
+      return;
+    }
+
+    if (taskReferenceImages[0]?.file && taskReferenceImages[0].file.size > 5 * 1024 * 1024) {
+      setErrorMessage('Cette image est trop lourde. Taille maximale : 5 MB.');
+      return;
+    }
 
     // 2. L'IMAGE ET LE TEXTE QUITTENT IMMÉDIATEMENT LA BARRE DE CHAT
     setSelectedImages([]);
@@ -240,10 +256,9 @@ export default function CreerPage() {
     setCompositedUrl(null);
     setViewingWithLogo(true);
 
-    // 3. Activer le signal visuel style ChatGPT ("Création de l'image") avec les images de référence associées
+    // 3. Activer l'interface de génération 3D en cours sans faux pourcentage ni faux compte à rebours
     setIsGenerating(true);
-    setGenerationProgress(14);
-    setGenerationStep('Composition et analyse de l\'image...');
+    setGenerationStep('Génération haute résolution Ideogram 4.0 en cours...');
     setCurrentGeneration({
       id: Date.now(),
       prompt: taskPrompt,
@@ -255,33 +270,12 @@ export default function CreerPage() {
       resultImage: null,
     });
 
-    // Défilement doux vers le signal si besoin
+    // Défilement doux vers la génération si besoin
     setTimeout(() => {
       if (generationSectionRef.current) {
         generationSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, 80);
-
-    // Progression animée du pourcentage (comme dans la capture ChatGPT : 14% -> 28% -> 48% -> 72% -> 88% -> 95%)
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    progressTimerRef.current = setInterval(() => {
-      setGenerationProgress((prev) => {
-        if (prev < 28) return prev + 7;
-        if (prev < 54) return prev + 5;
-        if (prev < 78) return prev + 4;
-        if (prev < 90) return prev + 2;
-        if (prev < 96) return prev + 1;
-        return prev;
-      });
-    }, 450);
-
-    const stepTimer1 = setTimeout(() => {
-      setGenerationStep('Génération haute résolution par l\'IA...');
-    }, 1500);
-
-    const stepTimer2 = setTimeout(() => {
-      setGenerationStep('Synthèse des détails et colorimétrie...');
-    }, 3200);
 
     try {
       // Construction du FormData si des images de référence sont présentes
@@ -344,9 +338,7 @@ export default function CreerPage() {
         throw new Error(data.error || 'Échec de la génération.');
       }
 
-      // Succès : Passer le pourcentage à 100% et afficher le résultat
-      clearInterval(progressTimerRef.current);
-      setGenerationProgress(100);
+      // Succès : afficher le résultat
       setGenerationStep('Création terminée avec succès !');
 
       if (data.image) {
@@ -362,13 +354,9 @@ export default function CreerPage() {
       fetchCredits(true);
       fetchQueue();
     } catch (err) {
-      clearInterval(progressTimerRef.current);
       setErrorMessage(err.message || 'Erreur lors de la génération');
       setCurrentGeneration(null);
     } finally {
-      clearTimeout(stepTimer1);
-      clearTimeout(stepTimer2);
-      clearInterval(progressTimerRef.current);
       setIsGenerating(false);
     }
   }
@@ -553,26 +541,38 @@ export default function CreerPage() {
           </div>
 
           {currentGeneration.status === 'in_progress' ? (
-            /* Matrice de points avec lueur et pourcentage comme dans la capture ChatGPT */
-            <div className="chatgpt-dot-matrix-container">
-              <div className="chatgpt-dot-matrix">
-                <div className="chatgpt-matrix-dots" />
-                <div className="chatgpt-matrix-shimmer" />
+            /* Carte 3D premium — profondeur, lumière cyan électrique, halo cyan, animation douce, sans faux compteurs */
+            <div className="onboarding-3d-generation-stage" style={{ minHeight: 440, padding: '1.5rem 0' }}>
+              <div className="onboarding-3d-scene">
+                <div className="onboarding-3d-card">
+                  <div className="onboarding-3d-glow-orb onboarding-3d-glow-orb--1" />
+                  <div className="onboarding-3d-glow-orb onboarding-3d-glow-orb--2" />
 
-                {/* Pourcentage en bas à droite */}
-                <div className="chatgpt-progress-pill">
-                  {generationProgress}%
+                  <div className="onboarding-3d-card__inner">
+                    <div className="onboarding-3d-card__brand">
+                      <LogoPX size={42} withText={false} />
+                    </div>
+
+                    {currentGeneration.referenceImages?.[0] && (
+                      <div className="onboarding-3d-card__preview-thumb">
+                        <img
+                          src={currentGeneration.referenceImages[0].url || (currentGeneration.referenceImages[0].file ? URL.createObjectURL(currentGeneration.referenceImages[0].file) : '')}
+                          alt="Produit de référence"
+                        />
+                      </div>
+                    )}
+
+                    <div className="onboarding-3d-card__pulse-ring" />
+
+                    <div className="onboarding-3d-card__status-text">
+                      {generationStep || 'Conception de votre visuel publicitaire...'}
+                    </div>
+
+                    <div className="onboarding-3d-card__subtext">
+                      Traitement Ideogram 4.0 en cours...
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div style={{ marginTop: 12, width: '100%', maxWidth: 480, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-accent)', display: 'inline-block', animation: 'pulseDot 1.5s infinite' }} />
-                  {generationStep || "Génération par l'IA en cours..."}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: 'var(--weight-semibold)' }}>
-                  {currentGeneration.type} • {currentGeneration.style}
-                </span>
               </div>
             </div>
           ) : currentGeneration.status === 'success' && currentGeneration.resultImage ? (
