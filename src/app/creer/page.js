@@ -54,9 +54,11 @@ export default function CreerPage() {
     creditsData,
     queueData,
     importedImages,
+    userProfile,
     fetchCredits,
     fetchQueue,
     fetchImages,
+    fetchUserProfile,
     addImportedImages,
     addCreatedImage,
     isAuthenticated,
@@ -65,11 +67,13 @@ export default function CreerPage() {
 
   const activeLot = creditsData?.fefo_lot || null;
   const queueStatus = queueData || { active_count: 0, max_limit: 10, available_slots: 10, can_queue: true };
+  const hasInitializedFormatRef = useRef(false);
 
   useEffect(() => {
     fetchCredits();
     fetchQueue();
     fetchImages('imported');
+    fetchUserProfile();
 
     // Rafraîchissement périodique de la file glissante (toutes les 15s — suffisant pour le statut)
     const interval = setInterval(() => {
@@ -77,7 +81,15 @@ export default function CreerPage() {
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [fetchCredits, fetchQueue, fetchImages]);
+  }, [fetchCredits, fetchQueue, fetchImages, fetchUserProfile]);
+
+  // Initialisation automatique du format selon le profil de marque enregistré
+  useEffect(() => {
+    if (userProfile?.preferred_format && !hasInitializedFormatRef.current) {
+      setSelectedFormat(userProfile.preferred_format);
+      hasInitializedFormatRef.current = true;
+    }
+  }, [userProfile]);
 
   // Déclencheur pour le bouton "+" : choix entre nouvel import et images déjà importées
   function handlePlusClick() {
@@ -492,6 +504,32 @@ export default function CreerPage() {
             </div>
           ) : null}
         </section>
+      )}
+
+      {/* ─── Profil de marque actif (mémorisé de l'onboarding) ─── */}
+      {userProfile?.business_name && (
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'rgba(0, 229, 255, 0.08)',
+          border: '1px solid rgba(0, 229, 255, 0.3)',
+          borderRadius: '30px',
+          padding: '6px 14px',
+          marginBottom: '1.25rem',
+          fontSize: '0.82rem',
+          color: '#00e5ff',
+        }}>
+          {userProfile.logo_url && (
+            <img src={userProfile.logo_url} alt="Logo" style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'contain' }} />
+          )}
+          <span>✦ Marque active : <strong>{userProfile.business_name}</strong></span>
+          {userProfile.marketing_pitch && (
+            <span style={{ color: 'rgba(255, 255, 255, 0.45)', fontSize: '0.75rem' }}>
+              · {userProfile.marketing_pitch.length > 40 ? `${userProfile.marketing_pitch.slice(0, 40)}...` : userProfile.marketing_pitch}
+            </span>
+          )}
+        </div>
       )}
 
       {/* ─── 1. Type de création ─── */}

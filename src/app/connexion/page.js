@@ -27,9 +27,20 @@ function AuthForm() {
 
   // Vérification de validité réelle du compte auprès de Supabase
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
       if (!error && user) {
-        router.replace(redirectUrl);
+        // Vérifier si l'utilisateur a complété son parcours d'onboarding
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('has_completed_onboarding')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (prof && prof.has_completed_onboarding === false) {
+          router.replace('/onboarding');
+        } else {
+          router.replace(redirectUrl);
+        }
       } else {
         // Si aucun utilisateur valide sur le serveur (ex: comptes de test supprimés), purger la session locale
         supabase.auth.signOut().catch(() => {});
@@ -153,13 +164,28 @@ function AuthForm() {
 
       setSuccessMsg(
         mode === 'signup'
-          ? 'Compte créé avec succès ! Bienvenue sur PIXAXIS.'
+          ? 'Compte créé avec succès ! Préparation de votre parcours...'
           : 'Connexion réussie ! Redirection en cours...'
       );
 
-      // 4. Redirection vers le studio ou la page ciblée
+      // 4. Redirection vers l'onboarding (pour les nouveaux) ou le studio (pour les anciens ayant complété l'onboarding)
+      let targetDestination = redirectUrl;
+      if (mode === 'signup' || authData.isNewUser) {
+        targetDestination = '/onboarding';
+      } else {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('has_completed_onboarding')
+          .eq('id', authData.userId || (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+
+        if (prof && prof.has_completed_onboarding === false) {
+          targetDestination = '/onboarding';
+        }
+      }
+
       setTimeout(() => {
-        router.push(redirectUrl);
+        router.push(targetDestination);
       }, 700);
 
     } catch (err) {

@@ -159,8 +159,23 @@ export const MAX_IMAGE_DIMENSION_PX = 1024;
 export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_UPLOAD_SIZE_MB = 10;
 export const MAX_IMAGE_DIMENSION_SERVER_PX = 2048;
-export const OPENAI_IMAGE_QUALITY = 'medium';
-export const OPENAI_MODEL = 'gpt-image-2';
+// ─── Modèle et API de génération (STRICTEMENT IDEOGRAM 4.0) ───────
+export const IDEOGRAM_MODEL = 'IDEOGRAM 4.0';
+export const IDEOGRAM_API_BASE_URL = 'https://api.ideogram.ai';
+export const IDEOGRAM_V4_GENERATE_ENDPOINT = 'https://api.ideogram.ai/v1/ideogram-v4/generate';
+export const IDEOGRAM_V4_REMIX_ENDPOINT = 'https://api.ideogram.ai/v1/ideogram-v4/remix';
+
+// Mapping strict vers les résolutions supportées par Ideogram 4.0 (ResolutionV4)
+export const IDEOGRAM_V4_RESOLUTIONS = {
+  '1024x1024': '1024x1024', // Carré 1:1
+  '1024x1792': '1440x2560', // Portrait 9:16 (Story, Reels, Mobile)
+  '1792x1024': '2560x1440', // Paysage 16:9 (Bannière, Cover, Présentation)
+};
+
+export function getIdeogramV4Resolution(formatId) {
+  return IDEOGRAM_V4_RESOLUTIONS[formatId] || '1024x1024';
+}
+
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 // ─── Rôles des images de référence (max 3) ───────────────────────

@@ -7,8 +7,10 @@ import {
   MAX_REFERENCE_IMAGES, 
   MAX_CONCURRENT_GENERATIONS,
   MAX_IMAGE_SIZE_MB,
-  OPENAI_MODEL,
-  OPENAI_IMAGE_QUALITY,
+  IDEOGRAM_MODEL,
+  IDEOGRAM_V4_GENERATE_ENDPOINT,
+  IDEOGRAM_V4_REMIX_ENDPOINT,
+  getIdeogramV4Resolution,
   buildPrompt 
 } from '@/config/constants';
 import { getFefoActiveLot, deductCreditsForGeneration } from '@/lib/credit-manager';
@@ -124,94 +126,116 @@ export async function POST(request) {
     queueId = queueItem.id;
 
     // ─── 5. Construction du prompt final automatique ───
-    const finalPrompt = buildPrompt(type, style, imageFiles.length, additional_prompt);
+    // Récupération automatique des données de marque enregistrées dans le profil
+    const { data: userProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('business_name, marketing_pitch')
+      .eq('id', userId)
+      .maybeSingle();
 
-    // ─── 6. Appel API de génération d'image ───
-    let generatedUrl = '';
-    const openAiKey = process.env.OPENAI_API_KEY;
-
-    if (!openAiKey) {
-      throw new Error('La clé API OpenAI n\'est pas configurée. Contactez l\'administrateur. Aucun crédit n\'a été débité.');
+    let combinedPromptDetail = additional_prompt || '';
+    if (userProfile?.business_name) {
+      const brandContext = `Commercial visual for brand: ${userProfile.business_name}${userProfile.marketing_pitch ? ` (${userProfile.marketing_pitch})` : ''}`;
+      combinedPromptDetail = combinedPromptDetail ? `${combinedPromptDetail}. ${brandContext}` : brandContext;
     }
 
-    // Résolution du format d'image pour l'API OpenAI
-    const openAiSize = format === '1024x1792' ? '1024x1792' : format === '1792x1024' ? '1792x1024' : '1024x1024';
+    const finalPrompt = buildPrompt(type, style, imageFiles.length, combinedPromptDetail);
+
+    // ─── 6. Appel API de génération d'image (STRICTEMENT IDEOGRAM 4.0) ───
+    let generatedUrl = '';
+    const ideogramApiKey = process.env.IDEOGRAM_API_KEY;
+
+    if (!ideogramApiKey || ideogramApiKey.trim() === '') {
+      throw new Error('La clé API Ideogram (IDEOGRAM_API_KEY) n\'est pas configurée dans les variables d’environnement serveur. Veuillez la renseigner dans votre fichier .env.local. Aucun crédit n\'a été débité.');
+    }
+
+    // Résolution certifiée pour le modèle Ideogram 4.0 (ResolutionV4)
+    const ideogramResolution = getIdeogramV4Resolution(format);
 
     if (imageFiles.length > 0) {
-      // ═══ CHEMIN AVEC IMAGES DE RÉFÉRENCE : endpoint /v1/images/edits ═══
-      // Traitement serveur : redimensionnement 2048px max + compression PNG
+      // ═══ CHEMIN AVEC IMAGE DE RÉFÉRENCE PRODUIT : endpoint /v1/ideogram-v4/remix ═══
+      // Traitement serveur Sharp : redimensionnement 2048px max + compression PNG
       const processedBuffers = await processAllImagesForOpenAI(imageFiles);
 
-      // Construction du FormData multipart pour l'API OpenAI
-      const openAiForm = new FormData();
-      openAiForm.append('model', OPENAI_MODEL);
-      openAiForm.append('prompt', finalPrompt);
-      openAiForm.append('n', '1');
-      openAiForm.append('size', openAiSize);
-      openAiForm.append('quality', OPENAI_IMAGE_QUALITY);
+      // Construction du FormData multipart requis par l'API Ideogram 4.0
+      const ideogramForm = new FormData();
+      ideogramForm.append('text_prompt', finalPrompt);
+      ideogramForm.append('resolution', ideogramResolution);
+      ideogramForm.append('image_weight', '60'); // Préservation haute fidélité de la structure du produit
 
-      // Ajout des images dans le champ image[] (multipart)
-      for (let i = 0; i < processedBuffers.length; i++) {
-        const blob = new Blob([processedBuffers[i]], { type: 'image/png' });
-        openAiForm.append('image[]', blob, `reference_${i}.png`);
-      }
+      const referenceBlob = new Blob([processedBuffers[0]], { type: 'image/png' });
+      ideogramForm.append('image', referenceBlob, 'product_reference.png');
 
-      const openAiRes = await fetch('https://api.openai.com/v1/images/edits', {
+      const ideogramRes = await fetch(IDEOGRAM_V4_REMIX_ENDPOINT, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAiKey}`,
+          'Api-Key': ideogramApiKey.trim(),
         },
-        body: openAiForm,
+        body: ideogramForm,
       });
 
-      const openAiData = await openAiRes.json();
-      if (!openAiRes.ok) {
-        const errCode = openAiData.error?.code;
-        if (errCode === 'credit_balance_exhausted' || openAiData.error?.type === 'insufficient_quota') {
-          throw new Error('Le solde de crédits de l\'API OpenAI est temporairement épuisé. Veuillez recharger votre compte OpenAI ou réessayer plus tard. Aucun crédit PIXAXIS n\'a été débité.');
+      const ideogramData = await ideogramRes.json().catch(() => ({}));
+      if (!ideogramRes.ok) {
+        const status = ideogramRes.status;
+        if (status === 401) {
+          throw new Error('Clé API Ideogram non autorisée ou invalide. Vérifiez IDEOGRAM_API_KEY dans votre configuration serveur. Aucun crédit n’a été débité.');
         }
-        throw new Error(openAiData.error?.message || 'Échec de l\'appel à l\'API OpenAI (images/edits)');
+        if (status === 429) {
+          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé. Aucun crédit n’a été débité.');
+        }
+        if (status === 422) {
+          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité Ideogram. Aucun crédit n’a été débité.');
+        }
+        throw new Error(ideogramData.detail || ideogramData.message || ideogramData.error || `Échec de l'appel à l'API Ideogram 4.0 (remix - code ${status}). Aucun crédit n'a été débité.`);
       }
 
-      // Récupération de l'URL temporaire ou du base64
-      const resultData = openAiData.data?.[0];
-      const tempUrl = resultData?.url || null;
-      const b64Data = resultData?.b64_json || null;
+      const resultObj = ideogramData.data?.[0];
+      const directImageUrl = resultObj?.url || null;
+
+      if (!directImageUrl) {
+        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0 (remix).');
+      }
 
       // Téléchargement et stockage permanent dans Supabase Storage
-      generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, tempUrl, b64Data);
+      generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, directImageUrl, null);
 
     } else {
-      // ═══ CHEMIN SANS IMAGES : endpoint /v1/images/generations ═══
-      const openAiRes = await fetch('https://api.openai.com/v1/images/generations', {
+      // ═══ CHEMIN TEXTE SEUL : endpoint /v1/ideogram-v4/generate ═══
+      const ideogramForm = new FormData();
+      ideogramForm.append('text_prompt', finalPrompt);
+      ideogramForm.append('resolution', ideogramResolution);
+
+      const ideogramRes = await fetch(IDEOGRAM_V4_GENERATE_ENDPOINT, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAiKey}`,
-          'Content-Type': 'application/json',
+          'Api-Key': ideogramApiKey.trim(),
         },
-        body: JSON.stringify({
-          model: OPENAI_MODEL,
-          prompt: finalPrompt,
-          n: 1,
-          size: openAiSize,
-          quality: OPENAI_IMAGE_QUALITY,
-        }),
+        body: ideogramForm,
       });
 
-      const openAiData = await openAiRes.json();
-      if (!openAiRes.ok) {
-        const errCode = openAiData.error?.code;
-        if (errCode === 'credit_balance_exhausted' || openAiData.error?.type === 'insufficient_quota') {
-          throw new Error('Le solde de crédits de l\'API OpenAI est temporairement épuisé. Veuillez recharger votre compte OpenAI ou réessayer plus tard. Aucun crédit PIXAXIS n\'a été débité.');
+      const ideogramData = await ideogramRes.json().catch(() => ({}));
+      if (!ideogramRes.ok) {
+        const status = ideogramRes.status;
+        if (status === 401) {
+          throw new Error('Clé API Ideogram non autorisée ou invalide. Vérifiez IDEOGRAM_API_KEY dans votre configuration serveur. Aucun crédit n’a été débité.');
         }
-        throw new Error(openAiData.error?.message || 'Échec de l\'appel à l\'API OpenAI');
+        if (status === 429) {
+          throw new Error('Le quota ou la limite de requêtes de votre compte Ideogram est temporairement épuisé. Aucun crédit n’a été débité.');
+        }
+        if (status === 422) {
+          throw new Error(ideogramData.detail || ideogramData.message || 'La demande a été rejetée par les contrôles de sécurité Ideogram. Aucun crédit n’a été débité.');
+        }
+        throw new Error(ideogramData.detail || ideogramData.message || ideogramData.error || `Échec de l'appel à l'API Ideogram 4.0 (generate - code ${status}). Aucun crédit n'a été débité.`);
       }
 
-      const resultData = openAiData.data?.[0];
-      const tempUrl = resultData?.url || null;
-      const b64Data = resultData?.b64_json || null;
+      const resultObj = ideogramData.data?.[0];
+      const directImageUrl = resultObj?.url || null;
 
-      generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, tempUrl, b64Data);
+      if (!directImageUrl) {
+        throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0.');
+      }
+
+      generatedUrl = await storeGeneratedImage(supabaseAdmin, userId, directImageUrl, null);
     }
 
     // ─── 7. Succès : enregistrement de l'image générée en base ───
@@ -296,10 +320,10 @@ async function storeGeneratedImage(supabase, userId, tempUrl, b64Data) {
     imgBuffer = Buffer.from(b64Data, 'base64');
   } else if (tempUrl) {
     const imgFetch = await fetch(tempUrl);
-    if (!imgFetch.ok) throw new Error('Impossible de télécharger l\'image générée depuis OpenAI.');
+    if (!imgFetch.ok) throw new Error('Impossible de télécharger l\'image générée depuis l\'API Ideogram 4.0.');
     imgBuffer = Buffer.from(await imgFetch.arrayBuffer());
   } else {
-    throw new Error('Aucune image n\'a été retournée par l\'API OpenAI.');
+    throw new Error('Aucune image n\'a été retournée par l\'API Ideogram 4.0.');
   }
 
   const fileName = `${userId}/${Date.now()}_generated.png`;

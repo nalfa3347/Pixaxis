@@ -49,20 +49,42 @@ export async function POST(request) {
       });
 
       if (createRes.data?.user) {
+        const userId = createRes.data.user.id;
         // Enregistrer également dans la table profiles pour synchronisation
         const userProfile = {
-          id: createRes.data.user.id,
+          id: userId,
           email: targetEmail,
           display_name: fullName?.trim() || (userPhone ? `Utilisateur ${userPhone}` : 'Membre PIXAXIS'),
+          phone: userPhone || null,
+          has_completed_onboarding: false,
           created_at: new Date().toISOString(),
         };
-        await supabaseAdmin.from('profiles').upsert(userProfile).catch(e => console.warn('Erreur upsert profile:', e));
+        const { error: profErr } = await supabaseAdmin.from('profiles').upsert(userProfile);
+        if (profErr) console.warn('Erreur upsert profile:', profErr);
+
+        // Initialiser un lot de crédits d'accueil (1 premier visuel pro offert pour l'onboarding)
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30);
+        const { error: credErr } = await supabaseAdmin.from('credits').insert({
+          user_id: userId,
+          pack_id: 'decouverte',
+          montant_achete: 0,
+          credits_initiaux: 200,
+          credits_restants: 200,
+          cout_par_generation: 200,
+          date_achat: new Date().toISOString(),
+          date_expiration: expiryDate.toISOString(),
+          fedapay_transaction_id: `welcome_${userId}`,
+        });
+        if (credErr) console.warn('Erreur création lot de bienvenue:', credErr);
 
         return NextResponse.json({
           success: true,
           action: 'created',
+          isNewUser: true,
+          hasCompletedOnboarding: false,
           targetEmail,
-          userId: createRes.data.user.id,
+          userId: userId,
           message: 'Compte créé avec succès !',
         });
       }

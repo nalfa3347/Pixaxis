@@ -32,8 +32,12 @@ export function PixaxisProvider({ children }) {
   // Cache de la file d'attente glissante
   const [queueData, setQueueData] = useState({ active_count: 0, max_limit: 10, available_slots: 10, can_queue: true });
 
+  // Profil de marque et onboarding
+  const [userProfile, setUserProfile] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+
   // Timestamp des derniers rafraîchissements
-  const lastFetchedRef = useRef({ created: 0, imported: 0, credits: 0 });
+  const lastFetchedRef = useRef({ created: 0, imported: 0, credits: 0, profile: 0 });
 
   // ─── Écoute et vérification de l'authentification Supabase ───
   useEffect(() => {
@@ -64,10 +68,11 @@ export function PixaxisProvider({ children }) {
       setSession(newSession);
       setUser(newSession?.user || null);
       // Réinitialiser le cache quand l'utilisateur change
-      lastFetchedRef.current = { created: 0, imported: 0, credits: 0 };
+      lastFetchedRef.current = { created: 0, imported: 0, credits: 0, profile: 0 };
       setCreatedImages(null);
       setImportedImages(null);
       setCreditsData(null);
+      setUserProfile(null);
       setAuthInitialized(true);
     });
 
@@ -235,25 +240,76 @@ export function PixaxisProvider({ children }) {
     setCreatedImages([]);
     setImportedImages([]);
     setCreditsData(null);
+    setUserProfile(null);
   }, []);
+
+  // ─── Récupération du profil utilisateur ───
+  const fetchUserProfile = useCallback(async (force = false) => {
+    if (!user?.id) return null;
+    const now = Date.now();
+    if (userProfile !== null && !force && now - (lastFetchedRef.current.profile || 0) < 60000) {
+      return userProfile;
+    }
+
+    setIsLoadingProfile(true);
+    try {
+      const res = await fetch('/api/onboarding/profile', {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data.profile || null);
+        lastFetchedRef.current.profile = Date.now();
+        return data.profile;
+      }
+    } catch (err) {
+      console.warn('Erreur récupération profil utilisateur:', err);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+    return userProfile;
+  }, [user, userProfile, getAuthHeaders]);
+
+  // ─── Mise à jour du profil utilisateur ───
+  const updateUserProfile = useCallback(async (updates) => {
+    try {
+      const res = await fetch('/api/onboarding/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data.profile);
+        return data.profile;
+      }
+    } catch (err) {
+      console.error('Erreur mise à jour profil:', err);
+    }
+    return null;
+  }, [getAuthHeaders]);
 
   // Pré-chargement silencieux au lancement — seulement sur les pages de l'app
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const path = window.location.pathname;
-    const isAppPage = ['/mes-images', '/creer', '/profil'].some(p => path.startsWith(p));
+    const isAppPage = ['/mes-images', '/creer', '/profil', '/onboarding'].some(p => path.startsWith(p));
     if (!isAppPage) return;
 
     // Crédits et file d'attente sont prioritaires (légers)
     fetchCredits();
     fetchQueue();
+    fetchUserProfile();
     // Images en léger différé pour ne pas saturer la connexion
     const t = setTimeout(() => {
       fetchImages('created');
       fetchImages('imported');
     }, 100);
     return () => clearTimeout(t);
-  }, []);
+  }, [fetchCredits, fetchQueue, fetchUserProfile, fetchImages]);
 
   const value = {
     user,
@@ -269,6 +325,10 @@ export function PixaxisProvider({ children }) {
     creditsData,
     isLoadingCredits,
     queueData,
+    userProfile,
+    isLoadingProfile,
+    fetchUserProfile,
+    updateUserProfile,
     fetchImages,
     fetchCredits,
     fetchQueue,
@@ -277,6 +337,7 @@ export function PixaxisProvider({ children }) {
     deleteImportedImage,
     setCreditsData,
     setQueueData,
+    setUserProfile,
   };
 
   return (
