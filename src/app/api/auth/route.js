@@ -53,9 +53,8 @@ export async function POST(request) {
         const userProfile = {
           id: createRes.data.user.id,
           email: targetEmail,
-          full_name: fullName?.trim() || (userPhone ? `Utilisateur ${userPhone}` : 'Membre PIXAXIS'),
-          phone: userPhone || null,
-          updated_at: new Date().toISOString(),
+          display_name: fullName?.trim() || (userPhone ? `Utilisateur ${userPhone}` : 'Membre PIXAXIS'),
+          created_at: new Date().toISOString(),
         };
         await supabaseAdmin.from('profiles').upsert(userProfile).catch(e => console.warn('Erreur upsert profile:', e));
 
