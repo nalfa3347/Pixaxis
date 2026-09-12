@@ -126,10 +126,12 @@
   display: flex;
   flex: 1;
   min-height: calc(100vh - 64px);
+  position: relative;
 }
 
+/* Menu de gauche Épinglé / Fixed — Ne disparaît jamais au scroll */
 .admin-nav {
-  width: 240px;
+  width: 250px;
   background: #080808;
   border-right: 1px solid #1A1A1A;
   padding: 1.5rem 1rem;
@@ -137,6 +139,14 @@
   flex-direction: column;
   gap: 0.4rem;
   flex-shrink: 0;
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+  overflow-y: auto;
+  z-index: 90;
 }
 
 .admin-nav__link {
@@ -168,9 +178,9 @@
   flex: 1;
   padding: 2rem;
   max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-  overflow-y: auto;
+  margin-left: 250px;
+  width: calc(100% - 250px);
+  box-sizing: border-box;
 }
 
 /* ─── Mobile Horizontal Nav Bar (≤ 768px) ───────────────────────── */
@@ -183,6 +193,9 @@
   white-space: nowrap;
   gap: 0.5rem;
   -webkit-overflow-scrolling: touch;
+  position: sticky;
+  top: 64px;
+  z-index: 95;
 }
 
 .admin-mobile-nav__link {
@@ -541,13 +554,18 @@
 /* ─── Mobile Responsiveness (Strict Rules) ───────────────────────── */
 @media (max-width: 900px) {
   .admin-nav {
-    display: none;
+    display: none !important;
   }
   .admin-mobile-nav {
     display: flex;
+    position: sticky;
+    top: 64px;
+    z-index: 95;
   }
   .admin-content {
     padding: 1.25rem;
+    margin-left: 0;
+    width: 100%;
   }
 }
 
