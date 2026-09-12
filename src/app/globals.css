@@ -2464,9 +2464,9 @@ svg[data-nextjs] {
   }
 }
 
-/* Common Section Styles - Aéré avec espacement généreux et sobre */
+/* Common Section Styles - Aéré avec espacement très généreux et sobre */
 .landing-section {
-  padding: 5rem 1.25rem;
+  padding: 8.5rem 1.5rem;
   position: relative;
   width: 100%;
   max-width: 100%;
@@ -2479,7 +2479,7 @@ svg[data-nextjs] {
 
 @media (max-width: 768px) {
   .landing-section {
-    padding: 3.5rem 0.85rem;
+    padding: 6rem 1rem;
   }
 }
 
@@ -2492,10 +2492,16 @@ svg[data-nextjs] {
 
 .landing-section__header {
   text-align: center;
-  max-width: 600px;
-  margin: 0 auto 2.5rem auto;
+  max-width: 620px;
+  margin: 0 auto 3.75rem auto;
   padding: 0 0.5rem;
   box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .landing-section__header {
+    margin: 0 auto 2.75rem auto;
+  }
 }
 
 .landing-badge {
@@ -2529,12 +2535,12 @@ svg[data-nextjs] {
   line-height: 1.45;
 }
 
-/* Hero Section */
+/* Hero Section — Espacement très aéré pour impact visuel maximal */
 .landing-hero {
-  padding-top: calc(64px + 3rem);
-  padding-bottom: 4.25rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-top: calc(64px + 5.5rem);
+  padding-bottom: 7.5rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
   position: relative;
   text-align: center;
   overflow: hidden;
@@ -2546,10 +2552,10 @@ svg[data-nextjs] {
 
 @media (max-width: 768px) {
   .landing-hero {
-    padding-top: calc(64px + 1.75rem);
-    padding-bottom: 3rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    padding-top: calc(64px + 3.25rem);
+    padding-bottom: 5.5rem;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
   }
 }
 
@@ -2699,7 +2705,7 @@ svg[data-nextjs] {
   position: relative;
   max-width: 520px;
   width: 100%;
-  margin: 3.5rem auto 0 auto;
+  margin: 5rem auto 0 auto;
   border-radius: 12px;
   background: #080808;
   border: 1px solid rgba(0, 229, 255, 0.25);
@@ -2709,6 +2715,12 @@ svg[data-nextjs] {
   box-sizing: border-box;
   animation: mockupSoberFloat 4.8s ease-in-out infinite;
   transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+@media (max-width: 768px) {
+  .landing-mockup {
+    margin: 3.5rem auto 0 auto;
+  }
 }
 
 .landing-mockup:hover {
@@ -3327,7 +3339,7 @@ svg[data-nextjs] {
 
 /* Callout Conversion Card - Aéré */
 .landing-callout {
-  padding: 4.5rem 1.25rem;
+  padding: 8rem 1.5rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -3336,7 +3348,7 @@ svg[data-nextjs] {
 
 @media (max-width: 768px) {
   .landing-callout {
-    padding: 3rem 0.85rem;
+    padding: 5.5rem 1rem;
   }
 }
 
@@ -3403,11 +3415,11 @@ svg[data-nextjs] {
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* Footer - Compact & Responsive */
+/* Footer - Aéré & Responsive */
 .landing-footer {
   background: #030408;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 2.75rem 1.25rem 1.5rem 1.25rem;
+  padding: 5.5rem 1.5rem 2.5rem 1.5rem;
   color: rgba(255, 255, 255, 0.7);
   width: 100%;
   max-width: 100%;
@@ -3416,7 +3428,7 @@ svg[data-nextjs] {
 
 @media (max-width: 768px) {
   .landing-footer {
-    padding: 2rem 0.85rem 1.25rem 0.85rem;
+    padding: 4rem 1rem 2rem 1rem;
   }
 }
 
