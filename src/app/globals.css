@@ -4023,9 +4023,16 @@ svg[data-nextjs] {
   .landing-wrapper {
     display: none !important;
   }
+  .auth-page__back-btn {
+    display: none !important;
+  }
 }
 
 html.is-standalone-app .landing-wrapper {
+  display: none !important;
+}
+
+html.is-standalone-app .auth-page__back-btn {
   display: none !important;
 }
 

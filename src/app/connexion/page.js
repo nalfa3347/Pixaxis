@@ -413,7 +413,17 @@ export default function ConnexionPage() {
 
       {/* Contenu principal centré et 100% responsive */}
       <main className="auth-page__main" role="main">
-        <Suspense fallback={<div style={{ textAlign: 'center', color: 'rgba(255, 255, 255, 0.5)', padding: '2rem' }}>Chargement...</div>}>
+        <Suspense fallback={
+          <div className="auth-card" style={{ opacity: 0.85, minHeight: '380px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 className="auth-card__title" style={{ marginBottom: '8px' }}>Connexion à votre compte</h2>
+            <p className="auth-card__subtitle">Accédez à votre studio et à vos créations.</p>
+            <div style={{ marginTop: '2rem', display: 'flex', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', animation: 'pulse 1s infinite' }} />
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', animation: 'pulse 1s infinite 0.2s' }} />
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', animation: 'pulse 1s infinite 0.4s' }} />
+            </div>
+          </div>
+        }>
           <AuthForm />
         </Suspense>
       </main>
