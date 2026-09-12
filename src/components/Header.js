@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { PAGES } from '@/config/constants';
 import dynamic from 'next/dynamic';
+import { usePixaxis } from '@/context/PixaxisContext';
 
 const SearchModal = dynamic(() => import('./SearchModal'), { ssr: false });
 const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), { ssr: false });
@@ -17,6 +19,7 @@ export default function Header() {
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { isAdmin } = usePixaxis();
 
   // Détermine le titre de la page courante
   const currentPage = PAGES.find(
@@ -29,6 +32,30 @@ export default function Header() {
       <header className="header">
         <h1 className="header__title">{pageTitle}</h1>
         <div className="header__actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.35rem 0.8rem',
+                background: 'rgba(0, 229, 255, 0.16)',
+                border: '1px solid rgba(0, 229, 255, 0.55)',
+                borderRadius: '9999px',
+                color: '#00E5FF',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                marginRight: '0.5rem',
+                boxShadow: '0 0 12px rgba(0, 229, 255, 0.25)',
+              }}
+              title="Accéder à la console administrateur (Utilisateurs & Crédits)"
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00E5FF', boxShadow: '0 0 8px #00E5FF' }} />
+              <span>🛡️ Admin • Utilisateurs & Crédits</span>
+            </Link>
+          )}
           <button
             className="header__icon-btn"
             onClick={() => setNotificationsOpen(true)}

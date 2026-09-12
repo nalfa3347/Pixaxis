@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   },
   {
     path: '/admin/users',
-    label: 'Utilisateurs',
+    label: 'Utilisateurs & Crédits',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />

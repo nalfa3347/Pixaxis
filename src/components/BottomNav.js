@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PAGES } from '@/config/constants';
+import { usePixaxis } from '@/context/PixaxisContext';
 
 /**
  * Navigation icons — inline SVGs, same as Sidebar for consistency.
@@ -36,6 +37,7 @@ const NAV_ICONS = {
  */
 export default function BottomNav() {
   const pathname = usePathname();
+  const { isAdmin } = usePixaxis();
 
   return (
     <nav className="bottom-nav" role="navigation" aria-label="Navigation mobile">
@@ -55,6 +57,22 @@ export default function BottomNav() {
           </Link>
         );
       })}
+
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className={`bottom-nav__link ${pathname.startsWith('/admin') ? 'bottom-nav__link--active' : ''}`}
+          style={{ color: '#00E5FF' }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+          </svg>
+          <span>Admin</span>
+        </Link>
+      )}
     </nav>
   );
 }

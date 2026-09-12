@@ -38,8 +38,7 @@ const NAV_ICONS = {
  */
 export default function Sidebar() {
   const pathname = usePathname();
-  const { creditsData } = usePixaxis();
-  const isAdmin = creditsData?.is_admin === true;
+  const { isAdmin } = usePixaxis();
 
   return (
     <aside className="sidebar" role="navigation" aria-label="Navigation principale">
@@ -67,19 +66,28 @@ export default function Sidebar() {
         })}
 
         {isAdmin && (
-          <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid rgba(0, 229, 255, 0.15)' }}>
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+            <div style={{ fontSize: '0.7rem', color: '#00E5FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.85rem 0.5rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00E5FF', boxShadow: '0 0 6px #00E5FF' }} />
+              Console Admin
+            </div>
             <Link
               href="/admin"
               className={`sidebar__link ${pathname.startsWith('/admin') ? 'sidebar__link--active' : ''}`}
-              style={{ color: '#00E5FF' }}
+              style={{
+                color: '#00E5FF',
+                background: pathname.startsWith('/admin') ? 'rgba(0, 229, 255, 0.15)' : 'rgba(0, 229, 255, 0.07)',
+                border: '1px solid rgba(0, 229, 255, 0.35)',
+                boxShadow: '0 0 12px rgba(0, 229, 255, 0.1)',
+              }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20, flexShrink: 0 }}>
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              <span>Espace Admin</span>
+              <span>Utilisateurs & Crédits</span>
             </Link>
           </div>
         )}

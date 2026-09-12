@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { CREDIT_PACKS } from '@/config/constants';
 import dynamic from 'next/dynamic';
@@ -23,7 +24,8 @@ export default function ProfilPage() {
     isAuthenticated, 
     getAuthHeaders,
     signOut,
-    user 
+    user,
+    isAdmin,
   } = usePixaxis();
 
   // Affichage direct depuis le cache de session (chargement perçu instantané 0ms)
@@ -41,6 +43,37 @@ export default function ProfilPage() {
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const [showFefoTooltip, setShowFefoTooltip] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
+
+  // Données administrateur pour consultation directe sur la page Profil
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminStats, setAdminStats] = useState(null);
+  const [loadingAdminData, setLoadingAdminData] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let isMounted = true;
+    async function loadAdminSummary() {
+      setLoadingAdminData(true);
+      try {
+        const [usersRes, statsRes] = await Promise.all([
+          fetch('/api/admin/users?limit=15', { headers: getAuthHeaders() }),
+          fetch('/api/admin/stats', { headers: getAuthHeaders() }),
+        ]);
+        if (usersRes.ok && statsRes.ok) {
+          const [usersJson, statsJson] = await Promise.all([usersRes.json(), statsRes.json()]);
+          if (isMounted) {
+            setAdminUsers(usersJson.users || []);
+            setAdminStats(statsJson);
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur chargement aperçu admin:', e);
+      } finally {
+        if (isMounted) setLoadingAdminData(false);
+      }
+    }
+    loadAdminSummary();
+  }, [isAdmin, getAuthHeaders]);
 
   const visibleTransactions = showAllTransactions ? transactions : transactions.slice(0, 3);
   const hasMoreTransactions = transactions.length > 3;
@@ -138,6 +171,179 @@ export default function ProfilPage() {
 
   return (
     <div>
+      {/* ─── Espace Administrateur : Utilisateurs & Crédits Achetés ─── */}
+      {isAdmin && (
+        <section className="mb-xl" style={{
+          background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(10, 10, 10, 0.95) 100%)',
+          border: '1px solid rgba(0, 229, 255, 0.4)',
+          borderRadius: 14,
+          padding: '1.5rem',
+          boxShadow: '0 0 30px rgba(0, 229, 255, 0.08)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00E5FF', boxShadow: '0 0 10px #00E5FF' }} />
+                <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Espace Administrateur
+                </span>
+              </div>
+              <h2 style={{ color: '#FFFFFF', fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
+                👥 Utilisateurs de l’application & Crédits
+              </h2>
+              <p style={{ color: '#888888', fontSize: '0.85rem', margin: '0.3rem 0 0 0' }}>
+                Consultez tous les utilisateurs qui utilisent PIXAXIS, leurs crédits disponibles et le nombre de crédits achetés.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Link
+                href="/admin/users"
+                style={{
+                  background: 'rgba(0, 229, 255, 0.1)',
+                  border: '1px solid rgba(0, 229, 255, 0.3)',
+                  color: '#00E5FF',
+                  padding: '0.6rem 1.1rem',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  textDecoration: 'none',
+                }}
+              >
+                Annuaire complet →
+              </Link>
+              <Link
+                href="/admin"
+                style={{
+                  background: '#00E5FF',
+                  color: '#000000',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  textDecoration: 'none',
+                  boxShadow: '0 0 14px rgba(0, 229, 255, 0.35)',
+                }}
+              >
+                Console Admin Complète →
+              </Link>
+            </div>
+          </div>
+
+          {/* Cartes d'indicateurs clés */}
+          {adminStats && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.85rem', marginBottom: '1.25rem' }}>
+              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Utilisateurs Inscrits</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#FFF', marginTop: '0.2rem' }}>
+                  {adminStats.kpis?.users?.total || 0}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#10B981', marginTop: '0.15rem' }}>
+                  {adminStats.kpis?.users?.active || 0} actifs
+                </div>
+              </div>
+
+              <div style={{ background: '#111', border: '1px solid rgba(0, 229, 255, 0.3)', borderRadius: 10, padding: '0.9rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#00E5FF', textTransform: 'uppercase' }}>Crédits Achetés</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#00E5FF', marginTop: '0.2rem' }}>
+                  {(adminStats.kpis?.credits?.total_purchased || 0).toLocaleString('fr-FR')}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#10B981', marginTop: '0.15rem' }}>
+                  {(adminStats.kpis?.revenue?.total_fcfa || 0).toLocaleString('fr-FR')} FCFA encaissés
+                </div>
+              </div>
+
+              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Crédits Restants</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10B981', marginTop: '0.2rem' }}>
+                  {(adminStats.kpis?.credits?.total_remaining || 0).toLocaleString('fr-FR')}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '0.15rem' }}>
+                  En circulation
+                </div>
+              </div>
+
+              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Crédits Consommés</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#EF4444', marginTop: '0.2rem' }}>
+                  {(adminStats.kpis?.credits?.total_consumed || 0).toLocaleString('fr-FR')}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '0.15rem' }}>
+                  Par les utilisateurs
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tableau des utilisateurs et leurs crédits */}
+          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #222' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#141414', color: '#888', borderBottom: '1px solid #222' }}>
+                  <th style={{ padding: '0.75rem 1rem' }}>Utilisateur</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Entreprise</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#00E5FF' }}>Crédits Restants</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#FFF' }}>Crédits Achetés</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Crédits Consommés</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Total Payé</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingAdminData ? (
+                  <tr>
+                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+                      Chargement des utilisateurs en temps réel...
+                    </td>
+                  </tr>
+                ) : adminUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+                      Aucun utilisateur inscrit pour le moment.
+                    </td>
+                  </tr>
+                ) : (
+                  adminUsers.map((u) => (
+                    <tr key={u.id} style={{ borderBottom: '1px solid #1a1a1a', background: '#0d0d0d' }}>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <div style={{ fontWeight: 600, color: '#FFF' }}>{u.nom}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#777' }}>{u.email}</div>
+                        {u.telephone && <div style={{ fontSize: '0.7rem', color: '#00E5FF' }}>📞 {u.telephone}</div>}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#AAA' }}>{u.nom_business || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{
+                          fontWeight: 700,
+                          color: u.credits_actuels > 0 ? '#00E5FF' : '#666',
+                          background: u.credits_actuels > 0 ? 'rgba(0, 229, 255, 0.1)' : 'transparent',
+                          padding: u.credits_actuels > 0 ? '0.2rem 0.5rem' : '0',
+                          borderRadius: 4,
+                        }}>
+                          {u.credits_actuels} crédits
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#FFFFFF' }}>
+                        {u.credits_achetes.toLocaleString('fr-FR')}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#EF4444', fontWeight: 500 }}>
+                        {u.credits_consommes.toLocaleString('fr-FR')}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: u.montant_total_paye > 0 ? '#10B981' : '#666' }}>
+                        {u.montant_total_paye.toLocaleString('fr-FR')} FCFA
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span className={`tag ${u.statut === 'actif' ? 'tag--success' : 'tag--neutral'}`}>
+                          {u.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* ─── Solde de crédits ─── */}
       <section className="mb-xl">
         <h2 className="section-title">Mon solde</h2>

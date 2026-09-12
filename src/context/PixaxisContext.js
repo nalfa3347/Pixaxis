@@ -13,6 +13,12 @@ const PixaxisContext = createContext(null);
  * 2. Navigation instantanée entre les pages (0ms de latence).
  * 3. Isolation stricte des données par utilisateur.
  */
+const CLIENT_ADMIN_EMAILS = [
+  'nasserpillar4@gmail.com',
+  'nasserpillarrr@gmail.com',
+  'admin@pixaxis.ai',
+];
+
 export function PixaxisProvider({ children }) {
   // Session utilisateur
   const [session, setSession] = useState(null);
@@ -38,6 +44,12 @@ export function PixaxisProvider({ children }) {
 
   // Timestamp des derniers rafraîchissements
   const lastFetchedRef = useRef({ created: 0, imported: 0, credits: 0, profile: 0 });
+
+  // Statut administrateur réactif (0ms côté client, validé côté serveur)
+  const isAdmin = Boolean(
+    creditsData?.is_admin === true ||
+    (user?.email && CLIENT_ADMIN_EMAILS.includes(user.email.toLowerCase().trim()))
+  );
 
   // ─── Écoute et vérification de l'authentification Supabase ───
   useEffect(() => {
@@ -331,10 +343,19 @@ export function PixaxisProvider({ children }) {
     return () => clearTimeout(t);
   }, [fetchCredits, fetchQueue, fetchUserProfile, fetchImages]);
 
+  // Chargement automatique dès que l'utilisateur est authentifié
+  useEffect(() => {
+    if (user?.id) {
+      fetchCredits(true);
+      fetchUserProfile();
+    }
+  }, [user?.id, fetchCredits, fetchUserProfile]);
+
   const value = {
     user,
     session,
     isAuthenticated: !!user,
+    isAdmin,
     authInitialized,
     getAuthHeaders,
     signOut,

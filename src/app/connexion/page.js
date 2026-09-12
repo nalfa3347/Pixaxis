@@ -168,9 +168,14 @@ function AuthForm() {
           : 'Connexion réussie ! Redirection en cours...'
       );
 
-      // 4. Redirection vers l'onboarding (pour les nouveaux) ou le studio (pour les anciens ayant complété l'onboarding)
+      // 4. Redirection vers l'onboarding (pour les nouveaux) ou le studio / admin console
+      const adminEmails = ['nasserpillar4@gmail.com', 'nasserpillarrr@gmail.com', 'admin@pixaxis.ai'];
+      const isLoggingInAdmin = targetEmail && adminEmails.includes(targetEmail.toLowerCase());
+
       let targetDestination = redirectUrl;
-      if (mode === 'signup' || authData.isNewUser) {
+      if (isLoggingInAdmin && (redirectUrl === '/creer' || !redirectUrl || redirectUrl === '/')) {
+        targetDestination = '/admin';
+      } else if (mode === 'signup' || authData.isNewUser) {
         targetDestination = '/onboarding';
       } else {
         const { data: prof } = await supabase

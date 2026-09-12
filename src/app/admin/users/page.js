@@ -117,12 +117,12 @@ export default function AdminUsersPage() {
             <tr>
               <th>Utilisateur</th>
               <th>Entreprise</th>
-              <th>Date d’inscription</th>
-              <th>Dernier accès</th>
-              <th>Crédits restants</th>
+              <th style={{ color: '#00E5FF' }}>Crédits Restants</th>
+              <th style={{ color: '#FFFFFF' }}>Crédits Achetés</th>
+              <th>Crédits Consommés</th>
+              <th>Total Payé</th>
               <th>Générations</th>
-              <th>Total payé</th>
-              <th>Dernier forfait</th>
+              <th>Dernier Forfait</th>
               <th>Statut</th>
               <th>Action</th>
             </tr>
@@ -151,17 +151,26 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td>{u.nom_business || <span style={{ color: '#555' }}>—</span>}</td>
-                  <td style={{ fontSize: '0.8rem', color: '#AAA' }}>
-                    {new Date(u.date_creation).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td style={{ fontSize: '0.8rem', color: '#AAA' }}>
-                    {new Date(u.dernier_acces).toLocaleDateString('fr-FR')}
-                  </td>
                   <td>
-                    <span style={{ fontWeight: 700, color: u.credits_actuels > 0 ? '#00E5FF' : '#666' }}>
-                      {u.credits_actuels}
+                    <span style={{ 
+                      fontWeight: 700, 
+                      color: u.credits_actuels > 0 ? '#00E5FF' : '#666',
+                      background: u.credits_actuels > 0 ? 'rgba(0, 229, 255, 0.1)' : 'transparent',
+                      padding: u.credits_actuels > 0 ? '0.2rem 0.55rem' : '0',
+                      borderRadius: 4,
+                      border: u.credits_actuels > 0 ? '1px solid rgba(0, 229, 255, 0.3)' : 'none'
+                    }}>
+                      {u.credits_actuels} crédits
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}> / {u.credits_achetes}</span>
+                  </td>
+                  <td style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                    {u.credits_achetes.toLocaleString('fr-FR')}
+                  </td>
+                  <td style={{ color: '#EF4444', fontWeight: 500 }}>
+                    {u.credits_consommes.toLocaleString('fr-FR')}
+                  </td>
+                  <td style={{ fontWeight: 600, color: u.montant_total_paye > 0 ? '#10B981' : '#666' }}>
+                    {u.montant_total_paye.toLocaleString('fr-FR')} FCFA
                   </td>
                   <td>
                     <span style={{ fontWeight: 600, color: '#FFF' }}>{u.nombre_generations}</span>
@@ -170,9 +179,6 @@ export default function AdminUsersPage() {
                         ({u.generations_admin_count} admin)
                       </span>
                     )}
-                  </td>
-                  <td style={{ fontWeight: 600, color: u.montant_total_paye > 0 ? '#10B981' : '#666' }}>
-                    {u.montant_total_paye.toLocaleString('fr-FR')} FCFA
                   </td>
                   <td>
                     {u.dernier_forfait ? (
