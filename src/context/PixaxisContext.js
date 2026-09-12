@@ -205,6 +205,20 @@ export function PixaxisProvider({ children }) {
     }
   }, []);
 
+  // ─── Action : Mettre à jour une image générée (ex: ajout ultérieur du logo) ───
+  const updateCreatedImage = useCallback((updatedImage) => {
+    if (!updatedImage) return;
+    setCreatedImages((prev) => {
+      if (!prev) return [updatedImage];
+      return prev.map((img) => {
+        if ((updatedImage.id && img.id === updatedImage.id) || (updatedImage.originalUrl && img.url === updatedImage.originalUrl)) {
+          return { ...img, ...updatedImage, url: updatedImage.url || updatedImage.compositedUrl || img.url };
+        }
+        return img;
+      });
+    });
+  }, []);
+
   // ─── Action : Supprimer définitivement une image importée (API + Cache) ───
   const deleteImportedImage = useCallback(async (id, url) => {
     if (!id && !url) return false;
@@ -334,6 +348,7 @@ export function PixaxisProvider({ children }) {
     fetchQueue,
     addImportedImages,
     addCreatedImage,
+    updateCreatedImage,
     deleteImportedImage,
     setCreditsData,
     setQueueData,

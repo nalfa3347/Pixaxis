@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
+import { resolveUser, supabaseAdmin } from '@/lib/supabase-server';
 import { compositeLogoOnVisual } from '@/lib/logo-compositor';
 
 /**
- * POST /api/onboarding/composite-logo
- * Superpose fidèlement le logo original sur l'image générée avec Sharp.
- * Zéro hallucination IA, préservation vectorielle/alpha maximale.
+ * POST /api/images/composite-logo
+ * 
+ * Pipeline officiel PIXAXIS :
+ * 1. Image produit = référence principale transmise à Ideogram 4.0
+ * 2. Logo = fichier original conservé séparément (sans aucune altération IA)
+ * 3. Ideogram 4 = génération de la scène / publicité haute conversion
+ * 4. Logo = ajout ultérieur par l'application via Sharp (haute fidélité)
  */
 export async function POST(request) {
   try {
@@ -20,17 +24,19 @@ export async function POST(request) {
     let baseImageUrl = null;
     let logoBuffer = null;
     let logoUrl = null;
+    let position = 'bottom-right';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       imageId = formData.get('imageId');
       baseImageUrl = formData.get('imageUrl');
+      position = formData.get('position') || 'bottom-right';
       const logoFile = formData.get('logoFile');
 
       if (logoFile && logoFile instanceof Blob && logoFile.size > 0) {
         logoBuffer = Buffer.from(await logoFile.arrayBuffer());
 
-        // Enregistrer également ce logo dans le profil utilisateur et storage
+        // Sauvegarder ce logo séparément dans le profil et dans le storage
         const logoName = logoFile.name ? logoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_') : 'logo.png';
         const logoPath = `logos/${userId}/${Date.now()}_${logoName}`;
         const { data: upData } = await supabaseAdmin.storage
@@ -48,9 +54,10 @@ export async function POST(request) {
       imageId = body.imageId;
       baseImageUrl = body.imageUrl;
       logoUrl = body.logoUrl;
+      position = body.position || 'bottom-right';
     }
 
-    // Récupérer l'URL de l'image de base si seulement imageId est fourni
+    // Récupérer l'URL de base si seulement imageId est fourni
     if (!baseImageUrl && imageId) {
       const { data: imgRecord } = await supabaseAdmin
         .from('generated_images')
@@ -63,7 +70,7 @@ export async function POST(request) {
     }
 
     if (!baseImageUrl) {
-      return NextResponse.json({ error: 'Image de base introuvable.' }, { status: 400 });
+      return NextResponse.json({ error: 'Image publicitaire de base introuvable.' }, { status: 400 });
     }
 
     const result = await compositeLogoOnVisual({
@@ -72,18 +79,15 @@ export async function POST(request) {
       baseImageUrl,
       logoUrl,
       logoBuffer,
+      position,
     });
 
     return NextResponse.json({
-      success: true,
-      compositedUrl: result.compositedUrl,
-      originalUrl: result.originalUrl,
-      logoUrl: result.logoUrl,
-      message: 'Logo intégré parfaitement à votre création.',
+      ...result,
+      message: 'Logo original intégré fidèlement sans aucune déformation IA.',
     });
   } catch (err) {
-    console.error('Erreur POST /api/onboarding/composite-logo:', err);
-    return NextResponse.json({ error: err.message || 'Erreur interne du serveur' }, { status: 500 });
+    console.error('Erreur POST /api/images/composite-logo:', err);
+    return NextResponse.json({ error: err.message || 'Erreur lors de l\'intégration du logo' }, { status: 500 });
   }
 }
-

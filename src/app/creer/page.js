@@ -47,6 +47,18 @@ export default function CreerPage() {
   const progressTimerRef = useRef(null);
   const generationSectionRef = useRef(null);
 
+  // État pour l'ajout ultérieur du logo par l'application (pipeline officiel)
+  const [isCompositingLogo, setIsCompositingLogo] = useState(false);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoComposited, setLogoComposited] = useState(false);
+  const [originalSceneUrl, setOriginalSceneUrl] = useState(null);
+  const [compositedUrl, setCompositedUrl] = useState(null);
+  const [viewingWithLogo, setViewingWithLogo] = useState(true);
+  const [logoPosition, setLogoPosition] = useState('bottom-right');
+  const logoInputRef = useRef(null);
+
   const fileInputRef = useRef(null);
 
   // Contexte partagé en mémoire (cache instantané de session)
@@ -61,6 +73,7 @@ export default function CreerPage() {
     fetchUserProfile,
     addImportedImages,
     addCreatedImage,
+    updateCreatedImage,
     isAuthenticated,
     getAuthHeaders,
   } = usePixaxis();
@@ -222,6 +235,10 @@ export default function CreerPage() {
     setSelectedImages([]);
     setAdditionalPrompt('');
     setErrorMessage('');
+    setLogoComposited(false);
+    setOriginalSceneUrl(null);
+    setCompositedUrl(null);
+    setViewingWithLogo(true);
 
     // 3. Activer le signal visuel style ChatGPT ("Création de l'image") avec les images de référence associées
     setIsGenerating(true);
@@ -356,6 +373,103 @@ export default function CreerPage() {
     }
   }
 
+  // ─── Ajout ultérieur du logo de marque (Pipeline officiel PIXAXIS) ───
+  async function handleApplyLogo(fileOverride = null) {
+    if (!currentGeneration?.resultImage) return;
+
+    const baseImgUrl = originalSceneUrl || currentGeneration.resultImage.original_url || currentGeneration.resultImage.url;
+    const file = fileOverride || logoFile;
+
+    // Si aucun fichier n'est fourni et aucun logo enregistré dans le profil, ouvrir la modale
+    if (!file && !userProfile?.logo_url) {
+      setIsLogoModalOpen(true);
+      return;
+    }
+
+    setIsCompositingLogo(true);
+    setErrorMessage('');
+
+    try {
+      let res;
+      if (file) {
+        const formData = new FormData();
+        formData.append('imageId', currentGeneration.resultImage.id || '');
+        formData.append('imageUrl', baseImgUrl);
+        formData.append('position', logoPosition);
+        formData.append('logoFile', file);
+
+        res = await fetch('/api/images/composite-logo', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData,
+        });
+      } else {
+        res = await fetch('/api/images/composite-logo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            imageId: currentGeneration.resultImage.id || '',
+            imageUrl: baseImgUrl,
+            logoUrl: userProfile.logo_url,
+            position: logoPosition,
+          }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de l’intégration du logo');
+      }
+
+      setOriginalSceneUrl(baseImgUrl);
+      setCompositedUrl(data.compositedUrl);
+      setLogoComposited(true);
+      setViewingWithLogo(true);
+      setIsLogoModalOpen(false);
+
+      // Mise à jour de l'affichage dans la carte résultat
+      setCurrentGeneration((prev) => ({
+        ...prev,
+        resultImage: {
+          ...prev.resultImage,
+          url: data.compositedUrl,
+          original_url: baseImgUrl,
+        },
+      }));
+
+      // Mise à jour du cache de session PixaxisContext
+      updateCreatedImage({
+        id: currentGeneration.resultImage.id,
+        url: data.compositedUrl,
+        original_url: baseImgUrl,
+      });
+
+      if (file) {
+        fetchUserProfile(true);
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Impossible d’intégrer le logo.');
+    } finally {
+      setIsCompositingLogo(false);
+    }
+  }
+
+  function toggleLogoView() {
+    if (!compositedUrl || !originalSceneUrl) return;
+    const nextWithLogo = !viewingWithLogo;
+    setViewingWithLogo(nextWithLogo);
+    setCurrentGeneration((prev) => ({
+      ...prev,
+      resultImage: {
+        ...prev.resultImage,
+        url: nextWithLogo ? compositedUrl : originalSceneUrl,
+      },
+    }));
+  }
+
   return (
     <div style={{ paddingBottom: '260px' }}>
       {/* ─── Indicateur de file d'attente glissante ─── */}
@@ -464,6 +578,42 @@ export default function CreerPage() {
           ) : currentGeneration.status === 'success' && currentGeneration.resultImage ? (
             /* Résultat généré réussi */
             <div>
+              {/* Badge d'état du Pipeline publicitaire */}
+              <div style={{
+                margin: '0 auto var(--space-sm)',
+                maxWidth: 480,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                background: logoComposited ? 'rgba(0, 230, 118, 0.12)' : 'rgba(0, 229, 255, 0.08)',
+                border: `1px solid ${logoComposited ? 'rgba(0, 230, 118, 0.4)' : 'rgba(0, 229, 255, 0.25)'}`,
+                fontSize: '12px',
+                color: logoComposited ? 'var(--color-success)' : 'var(--color-accent)',
+              }}>
+                <span>
+                  {logoComposited ? '✓ Logo original superposé avec netteté chirurgicale' : '✦ Scène publicitaire Ideogram 4 prête'}
+                </span>
+                {logoComposited && originalSceneUrl && (
+                  <button
+                    type="button"
+                    onClick={toggleLogoView}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-text-primary)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      padding: 0,
+                    }}
+                  >
+                    {viewingWithLogo ? 'Voir scène sans logo' : 'Voir avec logo'}
+                  </button>
+                )}
+              </div>
+
               <div style={{ position: 'relative', width: '100%', maxWidth: 480, margin: '0 auto', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-accent)', boxShadow: '0 12px 36px rgba(0, 229, 255, 0.25)' }}>
                 <img 
                   src={currentGeneration.resultImage.url} 
@@ -475,13 +625,56 @@ export default function CreerPage() {
               </div>
 
               <div style={{ marginTop: 'var(--space-md)', display: 'flex', justifyContent: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                {!logoComposited && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--small"
+                    onClick={() => handleApplyLogo()}
+                    disabled={isCompositingLogo}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      borderColor: 'var(--color-accent)',
+                      color: 'var(--color-accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    title="Superposer fidèlement votre logo officiel sans aucune déformation IA"
+                  >
+                    {isCompositingLogo ? (
+                      <>
+                        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                        <span>Intégration du logo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🏷️ Appliquer mon logo</span>
+                        {userProfile?.logo_url && <span style={{ fontSize: '10px', opacity: 0.8 }}>(1-clic)</span>}
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {logoComposited && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--small"
+                    onClick={() => setIsLogoModalOpen(true)}
+                    style={{ padding: '8px 14px', fontSize: '13px' }}
+                    title="Changer de logo ou ajuster la position"
+                  >
+                    ⚙ Modifier le logo
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn btn--secondary btn--small"
                   onClick={() => setPreviewImage(currentGeneration.resultImage)}
                   style={{ padding: '8px 16px', fontSize: '13px' }}
                 >
-                  🔍 Agrandir en grand format
+                  🔍 Agrandir
                 </button>
                 <button
                   type="button"
@@ -490,7 +683,7 @@ export default function CreerPage() {
                   style={{ padding: '8px 18px', fontSize: '13px' }}
                   id="btn-download-created-card"
                 >
-                  ⬇ Télécharger l'image
+                  ⬇ Télécharger {logoComposited && viewingWithLogo ? 'avec logo' : ''}
                 </button>
                 <button
                   type="button"
@@ -665,7 +858,7 @@ export default function CreerPage() {
           {selectedImages.length > 0 && (
             <div>
               <div style={{ fontSize: '11px', color: 'var(--color-accent)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.9 }}>
-                <span>✦ Rôles : 1. Produit (priorité absolue) • 2. Logo/Marque • 3. Style/Ambiance</span>
+                <span>✦ Pipeline : Image 1 = Produit (référence principale Ideogram 4) • Logo original = conservé séparément et intégré après génération.</span>
               </div>
               <div className="chat-attachments-row">
               {selectedImages.map((img, idx) => (
@@ -677,7 +870,7 @@ export default function CreerPage() {
                   />
                   {/* Badge du rôle de l'image */}
                   <span className="chat-attachment-role-badge">
-                    {IMAGE_ROLES[idx]?.label || `Image ${idx + 1}`}
+                    {idx === 0 ? '📦 Produit (Réf. principale)' : IMAGE_ROLES[idx]?.label || `Image ${idx + 1}`}
                   </span>
                   {img.isUploading && (
                     <div className="chat-attachment-spinner">
@@ -1001,6 +1194,133 @@ export default function CreerPage() {
                   Valider ({selectedImages.length} sélectionnée{selectedImages.length > 1 ? 's' : ''})
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modale d'intégration du logo (Pipeline officiel PIXAXIS) ─── */}
+      {isLogoModalOpen && (
+        <div className="lightbox-modal" onClick={(e) => e.target === e.currentTarget && setIsLogoModalOpen(false)}>
+          <div style={{
+            background: 'var(--color-surface-elevated)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-xl)',
+            maxWidth: 440,
+            width: '90%',
+            position: 'relative',
+          }}>
+            <button
+              onClick={() => setIsLogoModalOpen(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-secondary)',
+                fontSize: 20,
+                cursor: 'pointer',
+              }}
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
+
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: '#fff' }}>
+              🏷️ Intégrer votre logo de marque
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              Le logo original est conservé sans altération IA et superposé avec une netteté chirurgicale sur la scène publicitaire générée par Ideogram 4.
+            </p>
+
+            {/* Aperçu du logo actuel s'il existe */}
+            {userProfile?.logo_url && !logoPreview && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: 16 }}>
+                <img src={userProfile.logo_url} alt="Logo actuel" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '500' }}>Logo enregistré</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>Format officiel conservé</div>
+                </div>
+              </div>
+            )}
+
+            {logoPreview && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: '8px', marginBottom: 16 }}>
+                <img src={logoPreview} alt="Nouveau logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', color: '#00e5ff', fontWeight: '500' }}>Nouveau logo sélectionné</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>Prêt pour l’application</div>
+                </div>
+              </div>
+            )}
+
+            {/* Position du logo */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                Position sur la publicité :
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { id: 'bottom-right', label: 'Bas Droite (recommandé)' },
+                  { id: 'bottom-left', label: 'Bas Gauche' },
+                  { id: 'top-right', label: 'Haut Droite' },
+                  { id: 'top-left', label: 'Haut Gauche' },
+                ].map((pos) => (
+                  <button
+                    key={pos.id}
+                    type="button"
+                    onClick={() => setLogoPosition(pos.id)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '0.78rem',
+                      borderRadius: '6px',
+                      border: `1px solid ${logoPosition === pos.id ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      background: logoPosition === pos.id ? 'rgba(0,229,255,0.1)' : 'transparent',
+                      color: logoPosition === pos.id ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {pos.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input file pour nouveau logo */}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/svg+xml,image/webp,image/jpeg"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setLogoFile(f);
+                  setLogoPreview(URL.createObjectURL(f));
+                }
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => logoInputRef.current?.click()}
+                style={{ flex: 1, fontSize: '0.85rem' }}
+              >
+                📁 Choisir un fichier
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => handleApplyLogo(logoFile)}
+                disabled={isCompositingLogo || (!logoFile && !userProfile?.logo_url)}
+                style={{ flex: 1, fontSize: '0.85rem' }}
+              >
+                {isCompositingLogo ? 'Application...' : 'Appliquer'}
+              </button>
             </div>
           </div>
         </div>

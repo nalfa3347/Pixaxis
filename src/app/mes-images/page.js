@@ -31,6 +31,7 @@ export default function MesImagesPage() {
     isLoadingImported,
     fetchImages,
     addImportedImages,
+    updateCreatedImage,
     deleteImportedImage,
     getAuthHeaders,
   } = usePixaxis();
@@ -239,6 +240,10 @@ export default function MesImagesPage() {
           image={selectedImage}
           onClose={() => setSelectedImage(null)}
           onDelete={activeTab === 'imported' ? handleDeleteImage : null}
+          onUpdateImage={(updated) => {
+            if (updateCreatedImage) updateCreatedImage(updated);
+            setSelectedImage(updated);
+          }}
         />
       )}
     </div>

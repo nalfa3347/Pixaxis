@@ -178,30 +178,33 @@ export function getIdeogramV4Resolution(formatId) {
 
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-// ─── Rôles des images de référence (max 3) ───────────────────────
-// Chaque image a un rôle spécifique qui influence le prompt envoyé à l'IA.
-// Ordre de priorité strict en cas de conflit : Produit > Logo/Marque > Style/Ambiance
+// ─── Pipeline & Rôles des images (Source unique de vérité) ───────
+// Règle d'or PIXAXIS :
+// 1. Image produit = référence principale envoyée à Ideogram 4.0 pour créer la scène
+// 2. Logo = fichier original conservé séparément (sans altération ni hallucination IA)
+// 3. Ideogram 4 = génération de la scène / publicité haute conversion autour du produit
+// 4. Logo = ajout ultérieur par l'application via Sharp (haute netteté vectorielle)
 export const IMAGE_ROLES = [
   {
     id: 'product',
     label: '1. Produit',
-    title: 'Produit (priorité absolue)',
-    description: 'Référence principale du produit — fidélité maximale (forme, proportions, couleurs, matière, détails)',
-    promptInstruction: 'The first reference image shows the PRODUCT (STRICT PRIORITY 1): Preserve its exact shape, proportions, colors, materials, components, details and design with maximum fidelity. Do NOT alter the product appearance. Only angle, lighting, integration into the scene and environment may adapt to the prompt.',
+    title: 'Image Produit (Référence principale)',
+    description: 'Référence principale du produit pour Ideogram 4 — fidélité maximale (forme, proportions, couleurs, matière, détails)',
+    promptInstruction: 'The primary reference image is the PRODUCT PHOTO (MAIN REFERENCE): Preserve its exact shape, proportions, colors, materials, components, details and design with maximum fidelity. Ideogram 4 must generate a premium, high-converting commercial advertising scene, environment, lighting, and composition around this exact product. Do NOT alter the product identity.',
   },
   {
     id: 'logo',
-    label: '2. Logo / Marque',
-    title: 'Logo / Marque (haute priorité)',
-    description: 'Logo ou marque à intégrer fidèlement dans la composition (forme, couleur, lisibilité)',
-    promptInstruction: 'The second reference image shows the LOGO/BRAND (HIGH PRIORITY 2): Integrate this logo or brand element faithfully into the final composition. Preserve its exact shape, colors, typography, proportions and readability without distortion.',
+    label: '2. Logo',
+    title: 'Logo de marque (Conservé séparément)',
+    description: 'Logo original de la marque — conservé séparément sans altération pour être intégré ultérieurement par l’application',
+    promptInstruction: 'The brand logo is preserved separately as the original high-resolution graphic. Compose the advertising scene leaving balanced negative space for subsequent official logo placement.',
   },
   {
     id: 'style',
     label: '3. Style / Ambiance',
-    title: 'Style / Ambiance (priorité secondaire)',
-    description: 'Inspiration esthétique (éclairage, colorimétrie, ambiance) — ne pas reproduire littéralement',
-    promptInstruction: 'The third reference image is a STYLE/MOOD REFERENCE (SECONDARY PRIORITY 3): Use it solely as aesthetic inspiration for lighting, color palette, mood, atmosphere and overall composition. Do NOT reproduce this image literally.',
+    title: 'Style / Ambiance (Inspiration visuelle)',
+    description: 'Inspiration esthétique pour le décor de scène (éclairage, colorimétrie, texture, ambiance publicitaire)',
+    promptInstruction: 'The style reference is for MOOD & LIGHTING INSPIRATION: Use it for ambient studio lighting, color palette, and advertising backdrop. Do NOT reproduce this image literally.',
   },
 ];
 
@@ -242,11 +245,17 @@ export const MAX_CONCURRENT_GENERATIONS = 10;
  * Construit le prompt final à partir des choix utilisateur.
  * À utiliser UNIQUEMENT côté serveur.
  * 
+ * Pipeline officiel :
+ * - Image produit = référence principale
+ * - Logo = fichier original conservé séparément
+ * - Ideogram 4 = génération de la scène/publicité
+ * - Logo = ajout ultérieur par l’application
+ * 
  * @param {string} type - ID du type de création
  * @param {string} style - ID du style visuel
  * @param {number} imageCount - Nombre d'images de référence fournies (0, 1, 2 ou 3)
  * @param {string} [additionalPrompt] - Détail optionnel saisi par l'utilisateur (max 150 chars)
- * @returns {string} Prompt structuré pour l'API OpenAI
+ * @returns {string} Prompt structuré pour l'API Ideogram 4.0
  */
 export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') {
   const basePrompt = PROMPT_TEMPLATES[type]?.[style];
@@ -257,24 +266,20 @@ export function buildPrompt(type, style, imageCount = 0, additionalPrompt = '') 
 
   let prompt = basePrompt;
 
-  // Ajout des instructions de rôle pour chaque image de référence fournie
+  // Instructions spécifiques pour la génération de la scène publicitaire autour du produit
   if (imageCount > 0) {
-    prompt += '.\n\nSTRICT REFERENCE IMAGE ROLES & PRIORITY (Priority 1: Product > Priority 2: Logo/Brand > Priority 3: Style/Mood):';
-    for (let i = 0; i < Math.min(imageCount, IMAGE_ROLES.length); i++) {
-      prompt += `\n- ${IMAGE_ROLES[i].promptInstruction}`;
-    }
-    prompt += '\nSTRICT ENFORCEMENT: The style or mood must NEVER alter, modify, or distort the product or the logo.';
+    prompt += '.\n\nCOMMERCIAL ADVERTISING SCENE (IDEOGRAM 4.0):\n- Product photo is the primary reference: preserve exact product shape, materials, colors, components, and package identity with maximum fidelity.\n- Ideogram 4 generates the surrounding commercial advertising scene, lighting, backdrop, and staging around the product.\n- Do NOT generate distorted artificial text or logos; official brand logo is maintained separately and composited cleanly by the application.';
   }
 
   // Ajout du détail optionnel de l'utilisateur s'il est renseigné (max 150 caractères)
   if (additionalPrompt && typeof additionalPrompt === 'string') {
     const sanitized = additionalPrompt.trim().slice(0, MAX_ADDITIONAL_PROMPT_LENGTH);
     if (sanitized) {
-      prompt += `.\nAdditional detail from the user: ${sanitized}`;
+      prompt += `.\nAdditional detail: ${sanitized}`;
     }
   }
 
-  prompt += '.\nHigh quality, professional result, suitable for commercial use.';
+  prompt += '.\nUltra high quality, professional commercial photography, pristine advertising composition.';
 
   return prompt;
 }

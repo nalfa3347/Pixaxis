@@ -154,6 +154,11 @@ export async function POST(request) {
 
     if (imageFiles.length > 0) {
       // ═══ CHEMIN AVEC IMAGE DE RÉFÉRENCE PRODUIT : endpoint /v1/ideogram-v4/remix ═══
+      // Pipeline officiel :
+      // 1. Image produit = référence principale transmise à Ideogram 4.0 (remix)
+      // 2. Logo = fichier original conservé séparément (jamais transmis à l'IA)
+      // 3. Ideogram 4 = génération de la scène / publicité haute conversion autour du produit
+      // 4. Logo = ajout ultérieur par l'application via Sharp pour une netteté vectorielle absolue
       // Traitement serveur Sharp : redimensionnement 2048px max + compression PNG
       const processedBuffers = await processAllImagesForOpenAI(imageFiles);
 
@@ -161,7 +166,7 @@ export async function POST(request) {
       const ideogramForm = new FormData();
       ideogramForm.append('text_prompt', finalPrompt);
       ideogramForm.append('resolution', ideogramResolution);
-      ideogramForm.append('image_weight', '60'); // Préservation haute fidélité de la structure du produit
+      ideogramForm.append('image_weight', '60'); // Préservation haute fidélité de la structure et matière du produit
 
       const referenceBlob = new Blob([processedBuffers[0]], { type: 'image/png' });
       ideogramForm.append('image', referenceBlob, 'product_reference.png');
@@ -244,6 +249,7 @@ export async function POST(request) {
       .insert({
         user_id: userId,
         url: generatedUrl,
+        original_url: generatedUrl,
         type_creation: type,
         style,
         format,

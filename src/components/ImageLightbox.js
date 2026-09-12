@@ -7,11 +7,20 @@ import { downloadImage } from '@/lib/download-helper';
  * ImageLightbox — Affichage plein écran d'une image avec vrai agrandissement net,
  * zoom haute résolution, suppression complète (images importées) et téléchargement direct.
  */
-export default function ImageLightbox({ image, onClose, onDelete }) {
+export default function ImageLightbox({ image, onClose, onDelete, onUpdateImage }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [activeUrl, setActiveUrl] = useState(image?.url || '');
+  const [isApplyingLogo, setIsApplyingLogo] = useState(false);
+  const [hasLogo, setHasLogo] = useState(Boolean(image?.url?.includes('_with_logo')));
+  const [statusMessage, setStatusMessage] = useState('');
+
+  useEffect(() => {
+    setActiveUrl(image?.url || '');
+    setHasLogo(Boolean(image?.url?.includes('_with_logo')));
+  }, [image]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -24,12 +33,12 @@ export default function ImageLightbox({ image, onClose, onDelete }) {
   if (!image) return null;
 
   const isImported = Boolean(image.date_import || image.filename);
-  const downloadName = image.filename || `pixaxis_${image.type_creation || 'image'}_${Date.now()}.png`;
+  const downloadName = image.filename || `pixaxis_${image.type_creation || 'publicite'}_${Date.now()}.png`;
 
   async function handleDownloadClick() {
     setIsDownloading(true);
     try {
-      await downloadImage(image.url, downloadName);
+      await downloadImage(activeUrl || image.url, downloadName);
     } finally {
       setIsDownloading(false);
     }
@@ -50,6 +59,51 @@ export default function ImageLightbox({ image, onClose, onDelete }) {
       alert(err.message || 'Échec de la suppression de l\'image');
       setIsDeleting(false);
       setConfirmDelete(false);
+    }
+  }
+
+  async function handleApplyLogoClick() {
+    setIsApplyingLogo(true);
+    setStatusMessage('');
+    try {
+      const res = await fetch('/api/images/composite-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageId: image.id || '',
+          imageUrl: image.original_url || image.url,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Impossible d’intégrer le logo');
+      }
+
+      setActiveUrl(data.compositedUrl);
+      setHasLogo(true);
+      setStatusMessage('✓ Logo de marque intégré avec succès !');
+
+      if (onUpdateImage) {
+        onUpdateImage({
+          ...image,
+          url: data.compositedUrl,
+          original_url: data.originalUrl || image.url,
+        });
+      }
+    } catch (err) {
+      setStatusMessage(err.message || 'Erreur lors de l’ajout du logo');
+    } finally {
+      setIsApplyingLogo(false);
+    }
+  }
+
+  function handleToggleOriginal() {
+    if (!image.original_url && !hasLogo) return;
+    if (activeUrl === image.original_url) {
+      setActiveUrl(image.url);
+    } else {
+      setActiveUrl(image.original_url || image.url);
     }
   }
 
@@ -83,7 +137,7 @@ export default function ImageLightbox({ image, onClose, onDelete }) {
       {/* Zone de visualisation nette avec zoom interactif */}
       <div className="lightbox-viewer" onClick={() => setIsZoomed(!isZoomed)}>
         <img 
-          src={image.url} 
+          src={activeUrl || image.url} 
           alt={image.prompt || image.filename || 'Image Pixaxis'} 
           className={`lightbox-image ${isZoomed ? 'lightbox-image--zoomed' : ''}`}
           loading="eager"
@@ -99,28 +153,61 @@ export default function ImageLightbox({ image, onClose, onDelete }) {
             {image.type_creation} ({image.style} • {image.format})
           </span>
         )}
+        {hasLogo && (
+          <span style={{ background: 'rgba(0, 229, 255, 0.15)', color: '#00e5ff', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', marginRight: 8 }}>
+            🏷️ Logo intégré
+          </span>
+        )}
         {image.date_creation && (
           <span>Créée le {new Date(image.date_creation).toLocaleDateString('fr-FR')}</span>
         )}
         {image.date_import && (
           <span>Importée le {new Date(image.date_import).toLocaleDateString('fr-FR')}</span>
         )}
-        <span style={{ marginLeft: 12, color: 'var(--color-text-tertiary)' }}>
-          {isZoomed ? '🔍 Zoom net actif (cliquez pour ajuster)' : '🔎 Cliquez sur l\'image pour zoomer'}
-        </span>
+        {statusMessage && (
+          <div style={{ marginTop: 6, color: statusMessage.startsWith('✓') ? 'var(--color-accent)' : 'var(--color-error)', fontSize: '12px' }}>
+            {statusMessage}
+          </div>
+        )}
       </div>
 
       {/* Barre d'actions */}
-      <div className="lightbox-actions">
+      <div className="lightbox-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
         {/* Bouton bascule zoom */}
         <button
           type="button"
           onClick={() => setIsZoomed(!isZoomed)}
           className="btn btn--secondary"
-          style={{ padding: '8px 16px', fontSize: 'var(--text-sm)' }}
+          style={{ padding: '8px 14px', fontSize: 'var(--text-sm)' }}
         >
           {isZoomed ? 'Ajuster à l\'écran' : 'Zoom net 100%'}
         </button>
+
+        {/* Bouton Intégrer Logo pour les images créées */}
+        {!isImported && !hasLogo && (
+          <button
+            type="button"
+            onClick={handleApplyLogoClick}
+            disabled={isApplyingLogo}
+            className="btn btn--secondary"
+            style={{ padding: '8px 14px', fontSize: 'var(--text-sm)', borderColor: 'rgba(0, 229, 255, 0.4)', color: '#00e5ff' }}
+            title="Superpose fidèlement votre logo de marque original sur cette scène publicitaire"
+          >
+            {isApplyingLogo ? 'Intégration du logo...' : '🏷️ Appliquer mon logo'}
+          </button>
+        )}
+
+        {/* Bascule Version avec / sans logo si disponible */}
+        {!isImported && image.original_url && image.original_url !== image.url && (
+          <button
+            type="button"
+            onClick={handleToggleOriginal}
+            className="btn btn--secondary"
+            style={{ padding: '8px 14px', fontSize: 'var(--text-sm)' }}
+          >
+            {activeUrl === image.original_url ? '🏷️ Afficher avec logo' : '🖼️ Afficher sans logo'}
+          </button>
+        )}
 
         {/* Bouton de suppression pour image importée */}
         {onDelete && (
