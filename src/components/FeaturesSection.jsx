@@ -4,7 +4,7 @@ export default function FeaturesSection() {
   const features = [
     {
       title: 'Simplicité ultra‑rapide',
-      description: "Importez ou choisissez jusqu’à 10 références, le tout en moins de 3 s.",
+      description: "Importez ou choisissez jusqu’à 3 références (Produit, Logo, Style), le tout en moins de 3 s.",
     },
     {
       title: 'Qualité premium',

@@ -194,29 +194,29 @@ export const IMAGE_ROLES = [
 // Ce mapping est utilisé côté serveur uniquement pour construire le prompt final.
 export const PROMPT_TEMPLATES = {
   logo: {
-    realistic: 'Create a professional, photo-realistic logo design',
-    minimalist: 'Create a clean, minimalist logo with simple geometric shapes and limited color palette',
-    '3d': 'Create a modern 3D-rendered logo with depth, lighting effects, and contemporary design',
+    realistic: 'Create a professional, high-end photo-realistic brand logo on an elegant textured backdrop',
+    minimalist: 'Create a clean, minimalist luxury brand logo with pure geometric shapes and refined color palette',
+    '3d': 'Create a modern 3D sculpted brand emblem with realistic depth, subtle reflections, and contemporary lighting',
   },
   poster: {
-    realistic: 'Create a high-quality, photo-realistic poster design',
-    minimalist: 'Create a minimalist poster with clean typography, ample white space, and limited colors',
-    '3d': 'Create a visually striking 3D illustrated poster with modern rendering and bold composition',
+    realistic: 'Create a professional high-impact advertising campaign poster with dramatic cinematic lighting, rich details, bold commercial composition, and pristine commercial photography quality',
+    minimalist: 'Create a sleek, minimalist advertising poster with strong visual hierarchy, clean lines, elegant focal point, and sophisticated commercial styling',
+    '3d': 'Create a visually striking 3D illustrated advertising poster with volumetric lighting, vibrant textures, modern depth of field, and bold commercial layout',
   },
   banner: {
-    realistic: 'Create a professional, photo-realistic banner suitable for social media or website header',
-    minimalist: 'Create a clean, minimalist banner with simple design elements and subtle color palette',
-    '3d': 'Create a dynamic 3D-rendered banner with modern illustration style for digital platforms',
+    realistic: 'Create a professional commercial advertising banner with wide scenic composition, luxury studio lighting, and high-impact commercial visual appeal',
+    minimalist: 'Create a modern minimalist commercial banner with clean lines, elegant focal elements, and polished advertising layout',
+    '3d': 'Create a dynamic 3D commercial advertising banner with modern perspective, depth, atmospheric lighting, and eye-catching visual rendering',
   },
   avatar: {
-    realistic: 'Create a professional, photo-realistic profile picture or avatar',
-    minimalist: 'Create a minimalist avatar or profile picture with clean lines and limited colors',
-    '3d': 'Create a stylish 3D-rendered avatar or profile picture with modern character design',
+    realistic: 'Create a professional, photo-realistic high-fashion portrait or avatar with studio lighting and natural skin tones',
+    minimalist: 'Create a minimalist artistic portrait with clean silhouette and elegant monochrome or duo-tone lighting',
+    '3d': 'Create a stylish 3D-rendered character avatar with modern CGI lighting, expressive features, and polished textures',
   },
   product: {
-    realistic: 'Create a professional product photography packshot with studio lighting and clean background',
-    minimalist: 'Create a minimalist product advertisement with clean composition and limited color palette',
-    '3d': 'Create a modern 3D-rendered product visualization with dramatic lighting and contemporary styling',
+    realistic: 'Create a high-impact commercial advertising visual and product packshot, featuring the featured product staged on a premium pedestal or natural setting with dynamic splashes, studio lighting, crisp commercial packaging details, and high-conversion advertising composition',
+    minimalist: 'Create a clean, elegant luxury product advertisement with editorial studio lighting, refined composition, subtle pedestal staging, and ample breathing room for commercial appeal',
+    '3d': 'Create a dynamic 3D commercial product advertisement with dramatic lighting, floating elements, energy particles, modern advertising composition, and stunning product rendering',
   },
 };
 

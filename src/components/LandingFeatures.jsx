@@ -40,8 +40,8 @@ export default function LandingFeatures() {
           <path d="M21 15l-5-5L5 21" />
         </svg>
       ),
-      title: '10 Références',
-      description: 'Importez vos photos pour guider l’IA.',
+      title: '3 Références',
+      description: 'Produit, logo et ambiance pour guider l’IA.',
     },
   ];
 
