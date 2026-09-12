@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import LogoPX from '@/components/LogoPX';
@@ -24,6 +24,15 @@ function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/creer';
+
+  // Si l'utilisateur est déjà connecté, redirection immédiate vers le studio
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        router.replace(redirectUrl);
+      }
+    });
+  }, [router, redirectUrl]);
 
   // Mode : 'signin' (Se connecter en premier par défaut) ou 'signup' (Créer un compte)
   const [mode, setMode] = useState('signin');
