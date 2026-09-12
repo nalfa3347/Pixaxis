@@ -30,7 +30,7 @@ export default function OnboardingPage() {
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [paymentSuccessMsg, setPaymentSuccessMsg] = useState('');
 
-  const hasPaid = (creditsData?.total_credits || 0) > 0;
+  const hasPaid = (creditsData?.total_credits || 0) > 0 || Boolean(creditsData?.is_admin);
 
   // Étape courante (1 à 4, ou 'generating', 'result')
   const [currentStep, setCurrentStep] = useState(1);

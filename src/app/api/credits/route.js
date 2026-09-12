@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserCreditSummary } from '@/lib/credit-manager';
 import { supabaseAdmin, resolveUser } from '@/lib/supabase-server';
 import { CREDIT_PACKS } from '@/config/constants';
+import { verifyAdminRequest } from '@/lib/admin';
 
 // Cache en mémoire (10s TTL par utilisateur)
 const creditsCache = new Map();
@@ -36,6 +37,10 @@ export async function GET(request) {
         return NextResponse.json(cached.data);
       }
     }
+
+    // Vérification du statut administrateur
+    const adminCheck = await verifyAdminRequest(request);
+    const isAdmin = adminCheck.isAdmin;
 
     // Exécution parallèle des requêtes pour diviser le temps de latence réseau
     const [creditSummary, txResult] = await Promise.all([
@@ -72,6 +77,7 @@ export async function GET(request) {
       fefo_lot: fefoLot,
       pack_restrictions: packRestrictions,
       transactions: transactions,
+      is_admin: isAdmin,
     };
 
     // Mettre en cache

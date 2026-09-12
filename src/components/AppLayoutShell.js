@@ -71,8 +71,9 @@ export default function AppLayoutShell({ children }) {
     '/connexion',
   ];
   const isPublicPage = publicRoutes.includes(pathname) || pathname.startsWith('/connexion');
+  const isAdminPage = pathname.startsWith('/admin');
 
-  if (isPublicPage) {
+  if (isPublicPage || isAdminPage) {
     return <>{children}</>;
   }
 

@@ -16,6 +16,7 @@ import {
 import { getFefoActiveLot, deductCreditsForGeneration } from '@/lib/credit-manager';
 import { invalidateUserCache } from '@/app/api/images/route';
 import { validateImageFiles, processAllImagesForOpenAI } from '@/lib/image-processor';
+import { verifyAdminRequest } from '@/lib/admin';
 import sharp from 'sharp';
 
 export async function POST(request) {
@@ -28,6 +29,10 @@ export async function POST(request) {
     );
   }
   const userId = user.id;
+
+  // Contrôle serveur des privilèges administrateur (accès gratuit pour tests & studio)
+  const adminCheck = await verifyAdminRequest(request);
+  const isRequesterAdmin = adminCheck.isAdmin;
 
   try {
     // ─── 0. Lecture du corps : FormData (avec images) ou JSON (sans images) ───
@@ -91,17 +96,27 @@ export async function POST(request) {
     }
 
     // ─── 3. Vérification du solde de crédits selon la règle FEFO ───
-    const fefoLot = await getFefoActiveLot(userId);
-    if (!fefoLot) {
-      return NextResponse.json({
-        error: 'Vous n\'avez aucun crédit actif. Veuillez acheter un pack pour générer des images.',
-      }, { status: 402 });
-    }
+    let fefoLot = null;
+    let generationCost = 0;
 
-    if (fefoLot.credits_restants < fefoLot.cout_par_generation) {
-      return NextResponse.json({
-        error: `Votre lot actif (${fefoLot.pack_name}) ne dispose que de ${fefoLot.credits_restants} crédits, ce qui est insuffisant pour cette génération (${fefoLot.cout_par_generation} crédits requis). Veuillez réapprovisionner votre compte.`,
-      }, { status: 402 });
+    if (isRequesterAdmin) {
+      // Les administrateurs bénéficient d'un accès gratuit pour tester sans frais commercial
+      fefoLot = await getFefoActiveLot(userId).catch(() => null);
+      generationCost = 0;
+    } else {
+      fefoLot = await getFefoActiveLot(userId);
+      if (!fefoLot) {
+        return NextResponse.json({
+          error: 'Vous n\'avez aucun crédit actif. Veuillez acheter un pack pour générer des images.',
+        }, { status: 402 });
+      }
+
+      if (fefoLot.credits_restants < fefoLot.cout_par_generation) {
+        return NextResponse.json({
+          error: `Votre lot actif (${fefoLot.pack_name}) ne dispose que de ${fefoLot.credits_restants} crédits, ce qui est insuffisant pour cette génération (${fefoLot.cout_par_generation} crédits requis). Veuillez réapprovisionner votre compte.`,
+        }, { status: 402 });
+      }
+      generationCost = fefoLot.cout_par_generation;
     }
 
     // ─── 4. Enregistrement dans la file d'attente (statut: processing) ───
@@ -115,8 +130,9 @@ export async function POST(request) {
         format,
         additional_prompt: additional_prompt?.slice(0, 150) || null,
         reference_images: imageFiles.length > 0 ? [`${imageFiles.length} image(s) de référence`] : [],
-        credit_lot_id: fefoLot.id,
-        cost: fefoLot.cout_par_generation,
+        credit_lot_id: isRequesterAdmin ? null : fefoLot.id,
+        cost: generationCost,
+        is_admin: isRequesterAdmin,
       })
       .select()
       .single();
@@ -284,8 +300,9 @@ export async function POST(request) {
         style,
         format,
         prompt: finalPrompt,
-        credits_utilises: fefoLot.cout_par_generation,
-        credit_lot_id: fefoLot.id,
+        credits_utilises: generationCost,
+        credit_lot_id: isRequesterAdmin ? null : fefoLot.id,
+        is_admin: isRequesterAdmin,
       })
       .select()
       .single();
@@ -296,12 +313,16 @@ export async function POST(request) {
     invalidateUserCache(userId);
 
     // ─── 8. Déduction des crédits UNIQUEMENT après succès confirmé ───
-    const updatedLot = await deductCreditsForGeneration({
-      userId,
-      creditLotId: fefoLot.id,
-      cost: fefoLot.cout_par_generation,
-      generatedImageId: savedImage?.id,
-    });
+    let remainingCredits = 'Illimité (Admin)';
+    if (!isRequesterAdmin && fefoLot) {
+      const updatedLot = await deductCreditsForGeneration({
+        userId,
+        creditLotId: fefoLot.id,
+        cost: generationCost,
+        generatedImageId: savedImage?.id,
+      });
+      remainingCredits = updatedLot.credits_restants;
+    }
 
     // ─── 9. Libération immédiate de la place dans la file glissante ───
     await supabaseAdmin
@@ -315,8 +336,9 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       image: savedImage || { url: generatedUrl },
-      credits_deducted: fefoLot.cout_par_generation,
-      remaining_credits: updatedLot.credits_restants,
+      credits_deducted: generationCost,
+      remaining_credits: remainingCredits,
+      is_admin: isRequesterAdmin,
       queue_id: queueId,
     });
   } catch (error) {
