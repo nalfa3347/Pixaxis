@@ -48,7 +48,9 @@ export function PixaxisProvider({ children }) {
   // Statut administrateur réactif (0ms côté client, validé côté serveur)
   const isAdmin = Boolean(
     creditsData?.is_admin === true ||
-    (user?.email && CLIENT_ADMIN_EMAILS.includes(user.email.toLowerCase().trim()))
+    (user?.email && CLIENT_ADMIN_EMAILS.includes(user.email.toLowerCase().trim())) ||
+    (user?.id && ['29380877-1178-4053-80be-6861a891d0b9', '7a94b97c-0894-4f95-8f7f-e1679dd9ae5b', 'f2cf266c-966d-4d46-8703-fca4d1ed532b'].includes(user.id)) ||
+    (user?.phone && ['+22892880010', '22892880010', '92880010', '+22892594526', '22892594526'].some(p => user.phone.includes(p)))
   );
 
   // ─── Écoute et vérification de l'authentification Supabase ───
@@ -103,11 +105,12 @@ export function PixaxisProvider({ children }) {
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`;
     }
-    if (session?.user?.id) {
-      headers['x-user-id'] = session.user.id;
+    const resolvedId = session?.user?.id || user?.id || (typeof window !== 'undefined' ? localStorage.getItem('pixaxis_user_id') : null);
+    if (resolvedId && resolvedId !== '00000000-0000-0000-0000-000000000001') {
+      headers['x-user-id'] = resolvedId;
     }
     return headers;
-  }, [session]);
+  }, [session, user]);
 
   // ─── Récupération des images (avec cache en mémoire) ───
   const fetchImages = useCallback(async (tab, force = false) => {

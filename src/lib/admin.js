@@ -14,18 +14,40 @@ export const IDEOGRAM_COST_PER_REQUEST_USD = 0.08;
 export const USD_TO_FCFA_RATE = 600;
 export const IDEOGRAM_COST_PER_REQUEST_FCFA = Math.round(IDEOGRAM_COST_PER_REQUEST_USD * USD_TO_FCFA_RATE);
 
+// Liste de secours stricte (garantit le bon fonctionnement en production Vercel même sans config manuelle d'env)
+export const DEFAULT_ADMIN_EMAILS = [
+  'nasserpillar4@gmail.com',
+  'nasserpillarrr@gmail.com',
+  'admin@pixaxis.ai',
+];
+
+export const DEFAULT_ADMIN_PHONES = [
+  '+22892880010',
+  '22892880010',
+  '92880010',
+];
+
+export const DEFAULT_ADMIN_USER_IDS = [
+  '29380877-1178-4053-80be-6861a891d0b9', // Nasser (Admin) nasserpillar4@gmail.com
+  '7a94b97c-0894-4f95-8f7f-e1679dd9ae5b', // Nasser nasserpillarrr@gmail.com / +22892880010
+  'f2cf266c-966d-4d46-8703-fca4d1ed532b', // Nasser phone_22892880010@pixaxis.com
+];
+
 /**
  * Récupère la liste blanche des adresses emails administrateurs.
- * Source stricte : variable d'environnement ADMIN_EMAILS.
+ * Combine les valeurs par défaut et la variable d'environnement ADMIN_EMAILS.
  * 
  * @returns {string[]} Liste des emails admin en minuscules
  */
 export function getAdminEmails() {
-  const raw = process.env.ADMIN_EMAILS || '';
-  return raw
+  const envRaw = process.env.ADMIN_EMAILS || '';
+  const fromEnv = envRaw
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter((e) => e.length > 0);
+
+  const combined = new Set([...DEFAULT_ADMIN_EMAILS, ...fromEnv]);
+  return Array.from(combined);
 }
 
 /**
@@ -37,15 +59,35 @@ export function getAdminEmails() {
 export function isAdminEmail(email) {
   if (!email || typeof email !== 'string') return false;
   const adminList = getAdminEmails();
-  return adminList.includes(email.trim().toLowerCase());
+  const normalized = email.trim().toLowerCase();
+  if (adminList.includes(normalized)) return true;
+  // Détection des comptes basés sur le téléphone de l'administrateur
+  if (normalized === 'phone_22892880010@pixaxis.com') return true;
+  return false;
+}
+
+/**
+ * Vérifie si un numéro de téléphone appartient à l'administrateur.
+ * 
+ * @param {string} phone - Numéro de téléphone
+ * @returns {boolean}
+ */
+export function isAdminPhone(phone) {
+  if (!phone || typeof phone !== 'string') return false;
+  const clean = phone.replace(/\s+/g, '').replace(/^\+/, '');
+  return DEFAULT_ADMIN_PHONES.some((p) => {
+    const pClean = p.replace(/\s+/g, '').replace(/^\+/, '');
+    return clean === pClean;
+  });
 }
 
 /**
  * Vérifie les autorisations administrateur pour une requête entrante.
- * Contrôle rigoureux en 3 étapes :
+ * Contrôle rigoureux en multi-niveaux :
  * 1. Session / token authentifié valide auprès de Supabase
- * 2. Résolution de l'adresse email réelle de l'utilisateur (JWT > table profiles > auth.admin)
- * 3. Appartenance stricte à la variable d'environnement ADMIN_EMAILS
+ * 2. Contrôle de l'identifiant utilisateur direct (DEFAULT_ADMIN_USER_IDS)
+ * 3. Résolution de l'adresse email et téléphone réels de l'utilisateur (JWT > table profiles > auth.admin)
+ * 4. Appartenance à la whitelist administrateur (Email, Téléphone ou UUID)
  * 
  * @param {Request} request - Requête HTTP entrante
  * @returns {Promise<{ isAdmin: boolean, error?: string, status?: number, user?: object, email?: string, userId?: string }>}
@@ -61,30 +103,45 @@ export async function verifyAdminRequest(request) {
       };
     }
 
+    // 1. Accès direct par UUID administrateur
+    if (DEFAULT_ADMIN_USER_IDS.includes(user.id)) {
+      return { 
+        isAdmin: true, 
+        user: { ...user, email: user.email || 'nasserpillar4@gmail.com' }, 
+        email: user.email || 'nasserpillar4@gmail.com', 
+        userId: user.id 
+      };
+    }
+
     let email = user.email ? user.email.trim().toLowerCase() : null;
+    let phone = user.phone ? user.phone.trim() : null;
 
-    // Si l'email n'est pas directement présent dans l'objet résolu, vérifier dans la table profiles
-    if (!email) {
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('email')
-        .eq('id', user.id)
-        .maybeSingle();
+    // 2. Recherche dans la table profiles
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('email, phone')
+      .eq('id', user.id)
+      .maybeSingle();
 
-      if (profile?.email) {
-        email = profile.email.trim().toLowerCase();
-      }
+    if (profile) {
+      if (!email && profile.email) email = profile.email.trim().toLowerCase();
+      if (!phone && profile.phone) phone = profile.phone.trim();
     }
 
-    // Fallback supplémentaire : interroger Supabase Auth Admin
-    if (!email) {
+    // 3. Fallback Supabase Auth Admin
+    if (!email || !phone) {
       const { data: authData } = await supabaseAdmin.auth.admin.getUserById(user.id);
-      if (authData?.user?.email) {
-        email = authData.user.email.trim().toLowerCase();
+      if (authData?.user) {
+        if (!email && authData.user.email) email = authData.user.email.trim().toLowerCase();
+        if (!phone && authData.user.phone) phone = authData.user.phone.trim();
       }
     }
 
-    if (!email || !isAdminEmail(email)) {
+    // 4. Contrôle email et téléphone
+    const hasAdminEmail = email && isAdminEmail(email);
+    const hasAdminPhone = phone && isAdminPhone(phone);
+
+    if (!hasAdminEmail && !hasAdminPhone) {
       return { 
         isAdmin: false, 
         error: 'Accès refusé. Ce compte ne dispose pas des privilèges administrateur.', 
@@ -95,8 +152,8 @@ export async function verifyAdminRequest(request) {
 
     return { 
       isAdmin: true, 
-      user: { ...user, email }, 
-      email, 
+      user: { ...user, email: email || 'nasserpillar4@gmail.com' }, 
+      email: email || 'nasserpillar4@gmail.com', 
       userId: user.id 
     };
   } catch (err) {

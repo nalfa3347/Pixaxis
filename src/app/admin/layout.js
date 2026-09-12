@@ -79,7 +79,7 @@ const NAV_ITEMS = [
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
-  const { getAuthHeaders, user, authInitialized } = usePixaxis();
+  const { getAuthHeaders, user, authInitialized, isAdmin: contextIsAdmin } = usePixaxis();
 
   const [isAdmin, setIsAdmin] = useState(null); // null = checking, true = authorized, false = forbidden
   const [adminEmail, setAdminEmail] = useState('');
@@ -90,6 +90,15 @@ export default function AdminLayout({ children }) {
     let isMounted = true;
 
     async function checkAdminStatus() {
+      // Si l'utilisateur n'est pas encore connecté, le marquer directement comme non connecté
+      if (!user) {
+        if (isMounted) {
+          setIsAdmin(false);
+          setErrorMessage('Veuillez vous connecter avec votre compte administrateur.');
+        }
+        return;
+      }
+
       try {
         const res = await fetch('/api/admin/check', {
           headers: getAuthHeaders(),
@@ -102,13 +111,19 @@ export default function AdminLayout({ children }) {
             setAdminEmail(data.email || user?.email || '');
           } else {
             setIsAdmin(false);
-            setErrorMessage(data.error || 'Accès refusé. Vous devez être connecté avec une adresse administrateur.');
+            setErrorMessage(data.error || 'Accès refusé. Ce compte ne dispose pas des privilèges administrateur.');
           }
         }
       } catch (err) {
         if (isMounted) {
-          setIsAdmin(false);
-          setErrorMessage('Erreur réseau lors du contrôle administrateur.');
+          // Si le client sait déjà que l'utilisateur est admin, autoriser en fallback réseau
+          if (contextIsAdmin) {
+            setIsAdmin(true);
+            setAdminEmail(user?.email || '');
+          } else {
+            setIsAdmin(false);
+            setErrorMessage('Erreur réseau lors du contrôle administrateur.');
+          }
         }
       }
     }
@@ -116,7 +131,7 @@ export default function AdminLayout({ children }) {
     if (authInitialized) {
       checkAdminStatus();
     }
-  }, [authInitialized, getAuthHeaders, user]);
+  }, [authInitialized, getAuthHeaders, user, contextIsAdmin]);
 
   // 1. Écran de chargement sécurisé
   if (isAdmin === null) {
@@ -129,29 +144,33 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  // 2. Écran d'accès refusé si non-administrateur
+  // 2. Écran d'accès refusé ou non-connecté
   if (isAdmin === false) {
+    const isUnauthenticated = !user;
+
     return (
       <div style={{ minHeight: '100vh', background: '#000000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div style={{ maxWidth: 480, width: '100%', background: '#0A0A0A', border: '1px solid #222222', borderRadius: 16, padding: '2.5rem', textAlign: 'center' }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
+        <div style={{ maxWidth: 480, width: '100%', background: '#0A0A0A', border: '1px solid #222222', borderRadius: 16, padding: '2.5rem', textAlign: 'center', boxShadow: '0 0 35px rgba(0, 0, 0, 0.8)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: isUnauthenticated ? 'rgba(0, 229, 255, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: isUnauthenticated ? '1px solid rgba(0, 229, 255, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)', color: isUnauthenticated ? '#00E5FF' : '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 32, height: 32 }}>
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
           <h1 style={{ color: '#FFFFFF', fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.75rem 0' }}>
-            Accès Administrateur Refusé
+            {isUnauthenticated ? 'Connexion Requise' : 'Accès Administrateur Refusé'}
           </h1>
           <p style={{ color: '#888888', fontSize: '0.92rem', lineHeight: 1.5, margin: '0 0 1.75rem 0' }}>
-            {errorMessage || 'Cette zone est réservée exclusivement aux administrateurs autorisés dans la configuration serveur.'}
+            {isUnauthenticated 
+              ? 'Vous devez être connecté avec votre compte administrateur (nasserpillar4@gmail.com) pour accéder à cette zone.'
+              : (errorMessage || `Le compte connecté (${user?.email || user?.id}) ne dispose pas des droits administrateur.`)}
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/" className="admin-btn admin-btn--secondary">
               ← Retour à l’accueil
             </Link>
-            <Link href="/connexion?redirect=/admin" className="admin-btn admin-btn--primary">
-              Se connecter en admin
+            <Link href="/connexion?redirect=/admin" className="admin-btn admin-btn--primary" style={{ background: '#00E5FF', color: '#000', fontWeight: 700 }}>
+              {isUnauthenticated ? 'Se connecter en admin →' : 'Changer de compte →'}
             </Link>
           </div>
         </div>

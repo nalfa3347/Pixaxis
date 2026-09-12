@@ -168,13 +168,17 @@ function AuthForm() {
           : 'Connexion réussie ! Redirection en cours...'
       );
 
-      // 4. Redirection vers l'onboarding (pour les nouveaux) ou le studio / admin console
+      // 4. Redirection vers l'espace admin ou l'onboarding / studio
       const adminEmails = ['nasserpillar4@gmail.com', 'nasserpillarrr@gmail.com', 'admin@pixaxis.ai'];
-      const isLoggingInAdmin = targetEmail && adminEmails.includes(targetEmail.toLowerCase());
+      const adminPhones = ['+22892880010', '22892880010', '92880010', '+22892594526', '22892594526'];
+      const isLoggingInAdmin = 
+        (targetEmail && adminEmails.includes(targetEmail.toLowerCase())) ||
+        (fullPhone && adminPhones.some(p => fullPhone.includes(p)));
 
       let targetDestination = redirectUrl;
-      if (isLoggingInAdmin && (redirectUrl === '/creer' || !redirectUrl || redirectUrl === '/')) {
-        targetDestination = '/admin';
+      if (isLoggingInAdmin) {
+        // Un administrateur va toujours à sa destination demandée ou par défaut sur /admin
+        targetDestination = (redirectUrl && redirectUrl !== '/creer') ? redirectUrl : '/admin';
       } else if (mode === 'signup' || authData.isNewUser) {
         targetDestination = '/onboarding';
       } else {
@@ -184,7 +188,7 @@ function AuthForm() {
           .eq('id', authData.userId || (await supabase.auth.getUser()).data.user?.id)
           .maybeSingle();
 
-        if (prof && prof.has_completed_onboarding === false) {
+        if (prof && prof.has_completed_onboarding === false && !redirectUrl) {
           targetDestination = '/onboarding';
         }
       }
