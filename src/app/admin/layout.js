@@ -195,24 +195,39 @@ export default function AdminLayout({ children }) {
 
         <div className="admin-header__actions">
           {adminEmail && (
-            <div className="admin-user-pill">
+            <div className="admin-user-pill" title={adminEmail}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, color: '#00E5FF' }}>
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              <span>Connecté :</span>
-              <strong>{adminEmail}</strong>
+              <span className="admin-user-pill__text">Connecté :</span>
+              <strong className="admin-user-pill__email">{adminEmail}</strong>
             </div>
           )}
 
-          <Link href="/creer" className="admin-btn admin-btn--secondary admin-btn--sm">
-            ← Studio PIXAXIS
+          <Link href="/creer" className="admin-btn admin-btn--studio admin-btn--sm admin-header__studio-btn" title="Aller au Studio PIXAXIS pour créer des images">
+            <span>←</span>
+            <span className="admin-header__studio-full">Studio PIXAXIS</span>
+            <span className="admin-header__studio-short">Studio</span>
           </Link>
         </div>
       </header>
 
       {/* Navigation Mobile Horizontale */}
       <nav className="admin-mobile-nav" aria-label="Navigation admin mobile">
+        <Link
+          href="/creer"
+          className="admin-mobile-nav__link admin-mobile-nav__link--studio"
+          title="Aller au Studio pour créer des images"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          <span>Créer au Studio</span>
+        </Link>
+
         {NAV_ITEMS.map((item) => {
           const isActive = item.exact 
             ? pathname === item.path 
@@ -234,7 +249,22 @@ export default function AdminLayout({ children }) {
       {/* Corps Principal avec Barre Latérale Desktop */}
       <div className="admin-shell">
         <aside className="admin-nav" aria-label="Navigation admin desktop">
-          <div style={{ padding: '0 0.5rem 1rem 0.5rem', borderBottom: '1px solid #161616', marginBottom: '0.75rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <Link
+              href="/creer"
+              className="admin-nav__link admin-nav__link--studio"
+              title="Retourner au Studio pour créer des images"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+              <span>Créer au Studio</span>
+            </Link>
+          </div>
+
+          <div style={{ padding: '0 0.5rem 0.75rem 0.5rem', borderBottom: '1px solid #161616', marginBottom: '0.75rem' }}>
             <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555555', fontWeight: 700 }}>
               Console de Gestion
             </span>

@@ -390,7 +390,7 @@ export default function AdminDashboardPage() {
       {/* ════════════════════════════════════════════════════════════
           BLOC 4 : GRAPHIQUES SVG (Revenus & Générations / Jour)
           ════════════════════════════════════════════════════════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+      <div className="admin-dual-grid">
         {/* Graphique Chiffre d'affaires */}
         <div className="admin-section" style={{ margin: 0 }}>
           <div className="admin-section__header">
@@ -439,7 +439,7 @@ export default function AdminDashboardPage() {
       {/* ════════════════════════════════════════════════════════════
           BLOC 5 : COÛTS IA (IDEOGRAM 4.0) & PANNEAU RENTABILITÉ
           ════════════════════════════════════════════════════════════ */}
-      <div id="rentabilite" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+      <div id="rentabilite" className="admin-dual-grid">
         {/* Suivi des coûts IA */}
         <div className="admin-section" style={{ margin: 0 }}>
           <div className="admin-section__header">
