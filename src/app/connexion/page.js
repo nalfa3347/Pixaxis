@@ -25,13 +25,21 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/creer';
 
-  // Si l'utilisateur est déjà connecté, redirection immédiate vers le studio
+  // Vérification de validité réelle du compte auprès de Supabase
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      if (!error && user) {
         router.replace(redirectUrl);
+      } else {
+        // Si aucun utilisateur valide sur le serveur (ex: comptes de test supprimés), purger la session locale
+        supabase.auth.signOut().catch(() => {});
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pixaxis_user_id');
+          localStorage.removeItem('pixaxis_user_name');
+          localStorage.removeItem('pixaxis_user_phone');
+        }
       }
-    });
+    }).catch(() => {});
   }, [router, redirectUrl]);
 
   // Mode : 'signin' (Se connecter en premier par défaut) ou 'signup' (Créer un compte)

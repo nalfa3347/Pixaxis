@@ -40,6 +40,29 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap"
         />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    var isStandalone = (window.matchMedia && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    )) || window.navigator.standalone === true || (document.referrer && document.referrer.indexOf('android-app://') !== -1);
+    
+    if (isStandalone) {
+      document.documentElement.classList.add('is-standalone-app');
+      if (window.location.pathname === '/') {
+        window.location.replace('/connexion');
+      }
+    }
+  } catch (e) {}
+})();
+`,
+          }}
+        />
       </head>
       <body>
         <PixaxisProvider>

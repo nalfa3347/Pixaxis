@@ -5,43 +5,63 @@ import { usePathname, useRouter } from 'next/navigation';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
-import { supabase } from '@/lib/supabase-client';
+import { usePixaxis } from '@/context/PixaxisContext';
 
-/**
- * AppLayoutShell — Enveloppe conditionnelle du layout.
- * Si l'utilisateur est sur la page d'accueil (Landing page '/'),
- * on n'affiche pas la sidebar/header/bottom-nav de l'application interne,
- * ce qui laisse le plein écran à la Landing Page avec sa propre navbar et footer.
- * Sur les pages de l'application ('/creer', '/mes-images', '/profil'),
- * le shell applicatif complet est affiché.
- * 
- * Gestion PWA / App Installée :
- * Si l'application est lancée en mode installé (standalone / écran d'accueil iPhone ou Android),
- * elle affiche immédiatement la page de connexion (/connexion) ou le studio (/creer).
- */
 export default function AppLayoutShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, authInitialized } = usePixaxis();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Détecter si l'application est ouverte depuis l'écran d'accueil (mode application installée)
+    // Détection exhaustive du mode application installée (PWA / Standalone / WebAPK / iOS WebClip)
     const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
+      (window.matchMedia && (
+        window.matchMedia('(display-mode: standalone)').matches || 
+        window.matchMedia('(display-mode: fullscreen)').matches || 
+        window.matchMedia('(display-mode: minimal-ui)').matches
+      )) || 
       window.navigator.standalone === true ||
-      document.referrer.includes('android-app://');
+      (document.referrer && document.referrer.indexOf('android-app://') !== -1) ||
+      document.documentElement.classList.contains('is-standalone-app');
 
+    // 1. Application installée lancée sur la racine '/' -> Redirection vers la page de connexion ou le studio
     if (isStandalone && pathname === '/') {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          router.replace('/creer');
-        } else {
-          router.replace('/connexion');
-        }
-      });
+      if (user) {
+        router.replace('/creer');
+      } else {
+        router.replace('/connexion');
+      }
+      return;
     }
-  }, [pathname, router]);
+
+    // 2. Protection des pages internes du studio si l'utilisateur n'est pas authentifié
+    if (authInitialized && !user) {
+      const protectedRoutes = ['/creer', '/mes-images', '/profil'];
+      const isProtected = protectedRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'));
+      if (isProtected) {
+        router.replace(`/connexion?redirect=${encodeURIComponent(pathname)}`);
+      }
+    }
+  }, [pathname, router, user, authInitialized]);
+
+  // Si on est en mode standalone sur la page d'accueil '/', bloquer l'affichage de la landing page
+  const isStandaloneEnv = typeof window !== 'undefined' && (
+    (window.matchMedia && (
+      window.matchMedia('(display-mode: standalone)').matches || 
+      window.matchMedia('(display-mode: fullscreen)').matches || 
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    )) || 
+    window.navigator.standalone === true ||
+    (document.referrer && document.referrer.indexOf('android-app://') !== -1) ||
+    document.documentElement.classList.contains('is-standalone-app')
+  );
+
+  if (isStandaloneEnv && pathname === '/') {
+    return <div style={{ minHeight: '100vh', backgroundColor: '#000000' }} />;
+  }
+
   const publicRoutes = [
     '/',
     '/mentions-legales',

@@ -17,6 +17,7 @@ export function PixaxisProvider({ children }) {
   // Session utilisateur
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   // Cache des images
   const [createdImages, setCreatedImages] = useState(null);
@@ -34,11 +35,29 @@ export function PixaxisProvider({ children }) {
   // Timestamp des derniers rafraîchissements
   const lastFetchedRef = useRef({ created: 0, imported: 0, credits: 0 });
 
-  // ─── Écoute de l'authentification Supabase ───
+  // ─── Écoute et vérification de l'authentification Supabase ───
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user || null);
+    // Vérification auprès de Supabase pour purger toute session orpheline ou utilisateur supprimé
+    supabase.auth.getUser().then(({ data: { user: verifiedUser }, error }) => {
+      if (error || !verifiedUser) {
+        // Nettoyage immédiat des jetons locaux périmés
+        supabase.auth.signOut().catch(() => {});
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pixaxis_user_id');
+          localStorage.removeItem('pixaxis_user_name');
+          localStorage.removeItem('pixaxis_user_phone');
+        }
+        setSession(null);
+        setUser(null);
+      } else {
+        supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+          setSession(currentSession);
+          setUser(verifiedUser);
+        });
+      }
+      setAuthInitialized(true);
+    }).catch(() => {
+      setAuthInitialized(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -49,6 +68,7 @@ export function PixaxisProvider({ children }) {
       setCreatedImages(null);
       setImportedImages(null);
       setCreditsData(null);
+      setAuthInitialized(true);
     });
 
     return () => subscription?.unsubscribe();
@@ -239,6 +259,7 @@ export function PixaxisProvider({ children }) {
     user,
     session,
     isAuthenticated: !!user,
+    authInitialized,
     getAuthHeaders,
     signOut,
     createdImages,

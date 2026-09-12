@@ -4018,4 +4018,16 @@ svg[data-nextjs] {
   }
 }
 
+/* ─── Mode Application Installée (PWA / Standalone) ─── */
+@media all and (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  .landing-wrapper {
+    display: none !important;
+  }
+}
+
+html.is-standalone-app .landing-wrapper {
+  display: none !important;
+}
+
+
 

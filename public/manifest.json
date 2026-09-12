@@ -21,5 +21,19 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Connexion",
+      "short_name": "Connexion",
+      "url": "/connexion",
+      "description": "Se connecter ou créer un compte"
+    },
+    {
+      "name": "Studio Créer",
+      "short_name": "Créer",
+      "url": "/creer",
+      "description": "Créer une image avec l'IA"
+    }
   ]
 }
