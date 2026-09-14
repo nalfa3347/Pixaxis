@@ -50,6 +50,8 @@ export default function RootLayout({ children }) {
     <html lang="fr" className={`${inter.variable} ${outfit.variable}`}>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

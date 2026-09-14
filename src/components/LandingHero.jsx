@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const InstallAppModal = dynamic(() => import('./InstallAppModal'), { ssr: false });
 
 // 30 images haute fidélité pour le studio PIXAXIS (20 publicités produits + 10 lifestyle / lieux / véhicules)
 const MOCKUP_SHOWCASE_IMAGES = [
@@ -20,7 +23,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 2,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Sneakers Nike rouge vif packshot publicitaire commercial',
     title: 'Sneakers Running Rouge Performance',
     type: 'Pub Produit',
@@ -31,7 +34,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 3,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Supercar sportive de luxe lancée sur une route côtière',
     title: 'Supercar de Luxe — Ligne Aérodynamique',
     type: 'Affiche',
@@ -42,7 +45,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 4,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Sac à main femme en cuir de luxe avec finitions or',
     title: 'Sac à Main Cuir Pleine Fleur & Finitions Or',
     type: 'Pub Produit',
@@ -53,7 +56,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 5,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Montre chronographe titane et or de luxe horlogerie prestige',
     title: 'Montre Chronographe Titane & Or',
     type: 'Pub Produit',
@@ -64,7 +67,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 6,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Veste blazer élégante coupe italienne prêt-à-porter',
     title: 'Veste Blazer Élégante Coupe Italienne',
     type: 'Affiche',
@@ -86,7 +89,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 8,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Smartphone premium iPhone Pro sur fond sombre reflets biseautés',
     title: 'iPhone Pro — Écran Super Retina',
     type: 'Pub Produit',
@@ -97,7 +100,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 9,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Piscine à débordement turquoise avec vue infinie sur l’océan',
     title: 'Piscine à Débordement sur l’Océan',
     type: 'Bannière',
@@ -108,7 +111,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 10,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Casquette streetwear brodée noire tendance mode urbaine',
     title: 'Casquette Streetwear Black Edition',
     type: 'Pub Produit',
@@ -119,7 +122,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 11,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Homme musclé et athlétique à la plage au coucher de soleil',
     title: 'Athlète Fitness au Coucher de Soleil',
     type: 'Affiche',
@@ -141,7 +144,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 13,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Ordinateur portable ultra-fin PC Pro créateur en aluminium brossé',
     title: 'PC Portable Ultra-Fin Pro Studio',
     type: 'Pub Produit',
@@ -152,7 +155,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 14,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Moto sportive de course noire et chromée sur piste urbaine',
     title: 'Moto Sportive V-Twin Performance',
     type: 'Affiche',
@@ -163,7 +166,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 15,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Savon artisanal bio moussant aux huiles essentielles et argile',
     title: 'Savon Artisanal Bio & Karité Naturel',
     type: 'Pub Produit',
@@ -174,7 +177,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 16,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Lunettes de soleil designer noir et or verres polarisés',
     title: 'Lunettes Solaires Noir & Or Luxe',
     type: 'Pub Produit',
@@ -185,7 +188,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 17,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Architecture contemporaine villa design avec larges baies vitrées',
     title: 'Architecture Contemporaine Villa Design',
     type: 'Bannière',
@@ -196,7 +199,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 18,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Parfum de luxe flacon noir et or prestige haute parfumerie',
     title: 'Parfum Black Orchid Prestige',
     type: 'Pub Produit',
@@ -207,7 +210,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 19,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1614252369475-531eba835eb1?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1614252369475-531eba835eb1?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Chaussures richelieu homme en cuir italien ciré sur marbre',
     title: 'Chaussures Richelieu Cuir Italien',
     type: 'Pub Produit',
@@ -218,7 +221,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 20,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Enfant portant un vêtement stylé et moderne collection mode',
     title: 'Mode Enfant — Collection Tendance',
     type: 'Affiche',
@@ -240,7 +243,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 22,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Montre connectée smartwatch sport et suivi fitness cadran OLED',
     title: 'Smartwatch Connectée Pulse Sport',
     type: 'Pub Produit',
@@ -251,7 +254,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 23,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Complet costume chic pour garçon prêt-à-porter habillé',
     title: 'Complet Costume Élégant Garçon',
     type: 'Affiche',
@@ -262,7 +265,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 24,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Chargeur rapide GaN compact et batterie externe powerbank',
     title: 'Chargeur GaN Ultra-Rapide 65W',
     type: 'Pub Produit',
@@ -273,7 +276,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 25,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Boisson rafraîchissante canette avec éclaboussures de fraîcheur',
     title: 'Canette Splash Citrus Energy Drink',
     type: 'Pub Produit',
@@ -284,7 +287,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 26,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Robe de gala haute couture en mouvement pour campagne de mode',
     title: 'Robe de Gala Haute Couture en Mouvement',
     type: 'Affiche',
@@ -306,7 +309,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 28,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Bouteille de jus d’orange pur fruit avec éclaboussure vitaminée',
     title: 'Jus d’Orange Artisanal — Splash Fraîcheur',
     type: 'Pub Produit',
@@ -317,7 +320,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 29,
     category: 'autre',
-    url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Restaurant gastronomique terrasse chic en bord de mer au coucher de soleil',
     title: 'Restaurant Gastronomique Vue Mer',
     type: 'Bannière',
@@ -328,7 +331,7 @@ const MOCKUP_SHOWCASE_IMAGES = [
   {
     id: 30,
     category: 'produit',
-    url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop&auto=format&q=80',
+    url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=440&h=440&fit=crop&auto=format&q=65',
     alt: 'Casque audio haute fidélité studio sans fil sur fond noir',
     title: 'Casque Audio Studio Sans Fil Hi-Fi',
     type: 'Pub Produit',
@@ -338,15 +341,12 @@ const MOCKUP_SHOWCASE_IMAGES = [
 ];
 
 export default function LandingHero() {
-  // Sélection aléatoire au chargement puis défilement toutes les 3.8 secondes
+  // Défilement fluide toutes les 3.8 secondes débutant à l'image locale optimisée (0ms latence)
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
 
   useEffect(() => {
-    // Initialiser avec un index aléatoire parmi les 30 images
-    const initialIndex = Math.floor(Math.random() * MOCKUP_SHOWCASE_IMAGES.length);
-    setCurrentIndex(initialIndex);
-
-    // Rotation toutes les 3.8 secondes (3800 ms) pour une présentation vive et dynamique
+    // Rotation toutes les 3.8 secondes pour une présentation vive et dynamique
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % MOCKUP_SHOWCASE_IMAGES.length);
     }, 3800);
@@ -393,9 +393,20 @@ export default function LandingHero() {
             </svg>
           </Link>
 
-          <a href="#pricing" className="landing-btn-secondary">
-            <span>Voir les tarifs</span>
-          </a>
+          <button
+            type="button"
+            onClick={() => setInstallModalOpen(true)}
+            className="landing-btn-secondary"
+            id="btn-hero-install-app"
+            style={{ cursor: 'pointer' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Installer l'app</span>
+          </button>
         </div>
 
         {/* Application Studio Mockup - épuré, abaissé & flottant avec mouvement visible */}
@@ -471,10 +482,16 @@ export default function LandingHero() {
                 <span style={{ color: '#ffffff', fontWeight: '500' }}>✓ Prête</span>
                 <span style={{ color: 'var(--color-accent)', fontWeight: '600' }}>1024×1024</span>
               </div>
-            </div>
           </div>
         </div>
       </div>
+    </div>
+    {installModalOpen && (
+        <InstallAppModal
+          isOpen={installModalOpen}
+          onClose={() => setInstallModalOpen(false)}
+        />
+      )}
     </section>
   );
 }

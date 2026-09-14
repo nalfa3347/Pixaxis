@@ -7,6 +7,7 @@ import LandingFAQ from '@/components/LandingFAQ';
 import LandingCallout from '@/components/LandingCallout';
 import LandingFooter from '@/components/LandingFooter';
 import ScrollReveal from '@/components/ScrollReveal';
+import LandingScrollInstallPrompt from '@/components/LandingScrollInstallPrompt';
 
 export const metadata = {
   title: 'PIXAXIS — Créez des images IA en un clic | Afrique de l’Ouest',
@@ -27,6 +28,7 @@ export default function Home() {
         <LandingCallout />
       </main>
       <LandingFooter />
+      <LandingScrollInstallPrompt />
     </div>
   );
 }
