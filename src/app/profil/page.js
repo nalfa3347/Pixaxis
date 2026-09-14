@@ -173,119 +173,95 @@ export default function ProfilPage() {
     <div>
       {/* ─── Espace Administrateur : Utilisateurs & Crédits Achetés ─── */}
       {isAdmin && (
-        <section className="mb-xl" style={{
-          background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(10, 10, 10, 0.95) 100%)',
-          border: '1px solid rgba(0, 229, 255, 0.4)',
-          borderRadius: 14,
-          padding: '1.5rem',
-          boxShadow: '0 0 30px rgba(0, 229, 255, 0.08)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00E5FF', boxShadow: '0 0 10px #00E5FF' }} />
-                <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <section className="profil-admin-section">
+          <div className="profil-admin-header">
+            <div className="profil-admin-title-area">
+              <div className="profil-admin-badge">
+                <span className="profil-admin-badge__dot" />
+                <span className="profil-admin-badge__text">
                   Espace Administrateur
                 </span>
               </div>
-              <h2 style={{ color: '#FFFFFF', fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
+              <h2 className="profil-admin-title">
                 👥 Utilisateurs de l’application & Crédits
               </h2>
-              <p style={{ color: '#888888', fontSize: '0.85rem', margin: '0.3rem 0 0 0' }}>
-                Consultez tous les utilisateurs qui utilisent PIXAXIS, leurs crédits disponibles et le nombre de crédits achetés.
+              <p className="profil-admin-desc">
+                Suivi en temps réel des utilisateurs, des crédits disponibles et des volumes achetés.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="profil-admin-actions">
               <Link
                 href="/admin/users"
-                style={{
-                  background: 'rgba(0, 229, 255, 0.1)',
-                  border: '1px solid rgba(0, 229, 255, 0.3)',
-                  color: '#00E5FF',
-                  padding: '0.6rem 1.1rem',
-                  borderRadius: 8,
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  textDecoration: 'none',
-                }}
+                className="profil-admin-btn profil-admin-btn--secondary"
               >
                 Annuaire complet →
               </Link>
               <Link
                 href="/admin"
-                style={{
-                  background: '#00E5FF',
-                  color: '#000000',
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  textDecoration: 'none',
-                  boxShadow: '0 0 14px rgba(0, 229, 255, 0.35)',
-                }}
+                className="profil-admin-btn profil-admin-btn--primary"
               >
-                Console Admin Complète →
+                Console Admin →
               </Link>
             </div>
           </div>
 
           {/* Cartes d'indicateurs clés */}
           {adminStats && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.85rem', marginBottom: '1.25rem' }}>
-              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Utilisateurs Inscrits</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#FFF', marginTop: '0.2rem' }}>
+            <div className="profil-admin-kpis">
+              <div className="profil-admin-kpi-card">
+                <div className="profil-admin-kpi-label">Inscrits</div>
+                <div className="profil-admin-kpi-value">
                   {adminStats.kpis?.users?.total || 0}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#10B981', marginTop: '0.15rem' }}>
+                <div className="profil-admin-kpi-sub profil-admin-kpi-sub--success">
                   {adminStats.kpis?.users?.active || 0} actifs
                 </div>
               </div>
 
-              <div style={{ background: '#111', border: '1px solid rgba(0, 229, 255, 0.3)', borderRadius: 10, padding: '0.9rem 1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#00E5FF', textTransform: 'uppercase' }}>Crédits Achetés</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#00E5FF', marginTop: '0.2rem' }}>
+              <div className="profil-admin-kpi-card profil-admin-kpi-card--accent">
+                <div className="profil-admin-kpi-label profil-admin-kpi-label--accent">Crédits Achetés</div>
+                <div className="profil-admin-kpi-value profil-admin-kpi-value--accent">
                   {(adminStats.kpis?.credits?.total_purchased || 0).toLocaleString('fr-FR')}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#10B981', marginTop: '0.15rem' }}>
-                  {(adminStats.kpis?.revenue?.total_fcfa || 0).toLocaleString('fr-FR')} FCFA encaissés
+                <div className="profil-admin-kpi-sub profil-admin-kpi-sub--success">
+                  {(adminStats.kpis?.revenue?.total_fcfa || 0).toLocaleString('fr-FR')} FCFA
                 </div>
               </div>
 
-              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Crédits Restants</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10B981', marginTop: '0.2rem' }}>
+              <div className="profil-admin-kpi-card">
+                <div className="profil-admin-kpi-label">En Circulation</div>
+                <div className="profil-admin-kpi-value profil-admin-kpi-value--success">
                   {(adminStats.kpis?.credits?.total_remaining || 0).toLocaleString('fr-FR')}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '0.15rem' }}>
-                  En circulation
+                <div className="profil-admin-kpi-sub">
+                  Restants
                 </div>
               </div>
 
-              <div style={{ background: '#111', border: '1px solid #222', borderRadius: 10, padding: '0.9rem 1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase' }}>Crédits Consommés</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#EF4444', marginTop: '0.2rem' }}>
+              <div className="profil-admin-kpi-card">
+                <div className="profil-admin-kpi-label">Consommés</div>
+                <div className="profil-admin-kpi-value profil-admin-kpi-value--danger">
                   {(adminStats.kpis?.credits?.total_consumed || 0).toLocaleString('fr-FR')}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '0.15rem' }}>
-                  Par les utilisateurs
+                <div className="profil-admin-kpi-sub">
+                  Par clients
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tableau des utilisateurs et leurs crédits */}
-          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #222' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', textAlign: 'left' }}>
+          {/* Tableau Desktop (visible sur ordinateur et tablette >= 769px) */}
+          <div className="profil-admin-table-wrapper">
+            <table className="profil-admin-table">
               <thead>
-                <tr style={{ background: '#141414', color: '#888', borderBottom: '1px solid #222' }}>
-                  <th style={{ padding: '0.75rem 1rem' }}>Utilisateur</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Entreprise</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#00E5FF' }}>Crédits Restants</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#FFF' }}>Crédits Achetés</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Crédits Consommés</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Total Payé</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Statut</th>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Entreprise</th>
+                  <th style={{ color: '#00E5FF' }}>Crédits Restants</th>
+                  <th style={{ color: '#FFF' }}>Crédits Achetés</th>
+                  <th>Crédits Consommés</th>
+                  <th>Total Payé</th>
+                  <th>Statut</th>
                 </tr>
               </thead>
               <tbody>
@@ -303,14 +279,14 @@ export default function ProfilPage() {
                   </tr>
                 ) : (
                   adminUsers.map((u) => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid #1a1a1a', background: '#0d0d0d' }}>
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                    <tr key={u.id}>
+                      <td>
                         <div style={{ fontWeight: 600, color: '#FFF' }}>{u.nom}</div>
                         <div style={{ fontSize: '0.75rem', color: '#777' }}>{u.email}</div>
                         {u.telephone && <div style={{ fontSize: '0.7rem', color: '#00E5FF' }}>📞 {u.telephone}</div>}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#AAA' }}>{u.nom_business || '—'}</td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td style={{ color: '#AAA' }}>{u.nom_business || '—'}</td>
+                      <td>
                         <span style={{
                           fontWeight: 700,
                           color: u.credits_actuels > 0 ? '#00E5FF' : '#666',
@@ -321,16 +297,16 @@ export default function ProfilPage() {
                           {u.credits_actuels} crédits
                         </span>
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#FFFFFF' }}>
+                      <td style={{ fontWeight: 600, color: '#FFFFFF' }}>
                         {u.credits_achetes.toLocaleString('fr-FR')}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#EF4444', fontWeight: 500 }}>
+                      <td style={{ color: '#EF4444', fontWeight: 500 }}>
                         {u.credits_consommes.toLocaleString('fr-FR')}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: u.montant_total_paye > 0 ? '#10B981' : '#666' }}>
+                      <td style={{ fontWeight: 600, color: u.montant_total_paye > 0 ? '#10B981' : '#666' }}>
                         {u.montant_total_paye.toLocaleString('fr-FR')} FCFA
                       </td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td>
                         <span className={`tag ${u.statut === 'actif' ? 'tag--success' : 'tag--neutral'}`}>
                           {u.statut}
                         </span>
@@ -341,12 +317,107 @@ export default function ProfilPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Cartes Mobiles Fluides (visible sur smartphones <= 768px) */}
+          <div className="profil-admin-user-cards">
+            {loadingAdminData ? (
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#888', background: '#0D0D0D', borderRadius: 8 }}>
+                Chargement des utilisateurs en temps réel...
+              </div>
+            ) : adminUsers.length === 0 ? (
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#888', background: '#0D0D0D', borderRadius: 8 }}>
+                Aucun utilisateur inscrit pour le moment.
+              </div>
+            ) : (
+              adminUsers.map((u) => (
+                <div key={u.id} className="profil-admin-user-card">
+                  <div className="profil-admin-user-card__header">
+                    <div>
+                      <div className="profil-admin-user-card__name">{u.nom}</div>
+                      <div className="profil-admin-user-card__contact">
+                        <span>{u.email}</span>
+                        {u.telephone && <span className="profil-admin-user-card__phone">📞 {u.telephone}</span>}
+                      </div>
+                    </div>
+                    <span className={`tag ${u.statut === 'actif' ? 'tag--success' : 'tag--neutral'}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                      {u.statut}
+                    </span>
+                  </div>
+
+                  {u.nom_business && (
+                    <div className="profil-admin-user-card__biz">
+                      🏢 {u.nom_business}
+                    </div>
+                  )}
+
+                  <div className="profil-admin-user-card__grid">
+                    <div>
+                      <div className="profil-admin-user-card__metric-label">Solde dispo</div>
+                      <div className="profil-admin-user-card__metric-val" style={{ color: u.credits_actuels > 0 ? '#00E5FF' : '#777' }}>
+                        {u.credits_actuels} cr.
+                      </div>
+                    </div>
+                    <div>
+                      <div className="profil-admin-user-card__metric-label">Achetés</div>
+                      <div className="profil-admin-user-card__metric-val" style={{ color: '#FFFFFF' }}>
+                        {u.credits_achetes.toLocaleString('fr-FR')} cr.
+                      </div>
+                    </div>
+                    <div>
+                      <div className="profil-admin-user-card__metric-label">Consommés</div>
+                      <div className="profil-admin-user-card__metric-val" style={{ color: '#EF4444' }}>
+                        {u.credits_consommes.toLocaleString('fr-FR')} cr.
+                      </div>
+                    </div>
+                    <div>
+                      <div className="profil-admin-user-card__metric-label">Total Payé</div>
+                      <div className="profil-admin-user-card__metric-val" style={{ color: u.montant_total_paye > 0 ? '#10B981' : '#777' }}>
+                        {u.montant_total_paye.toLocaleString('fr-FR')} F
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
       )}
 
       {/* ─── Solde de crédits ─── */}
       <section className="mb-xl">
-        <h2 className="section-title">Mon solde</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: 'var(--space-sm)' }}>
+          <h2 className="section-title" style={{ margin: 0 }}>Mon solde</h2>
+          {isAdmin && (
+            <span style={{ fontSize: '0.74rem', padding: '2px 10px', background: 'rgba(0, 229, 255, 0.15)', color: '#00E5FF', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '1px solid rgba(0, 229, 255, 0.4)' }}>
+              🛡️ Admin Illimité
+            </span>
+          )}
+        </div>
+
+        {/* Bannière explicative d'exemption pour le compte administrateur */}
+        {isAdmin && (
+          <div className="profil-admin-privilege-banner">
+            <div className="profil-admin-privilege-banner__content">
+              <span style={{ fontSize: '1.4rem' }}>⚡</span>
+              <div>
+                <div className="profil-admin-privilege-banner__title">
+                  Privilèges Administrateur Débloqués
+                </div>
+                <div className="profil-admin-privilege-banner__desc">
+                  Votre compte bénéficie de l'exemption administrateur : générations illimitées au studio, tests de produits et remix sans débit commercial.
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/creer"
+              className="profil-admin-btn profil-admin-btn--primary"
+              style={{ padding: '0.5rem 1rem', fontSize: '0.82rem' }}
+            >
+              Créer au Studio →
+            </Link>
+          </div>
+        )}
+
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
           <div style={{ 
             fontFamily: 'var(--font-heading)', 
@@ -764,6 +835,9 @@ export default function ProfilPage() {
       {showAccountModal && (
         <AccountModal
           credits={credits}
+          userEmail={user?.email}
+          userId={user?.id}
+          isAdmin={isAdmin}
           onClose={() => setShowAccountModal(false)}
         />
       )}
